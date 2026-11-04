@@ -20,14 +20,23 @@ description: >-
 2. ודא שאינסטגרם מחובר: `composio search "list instagram conversations"`.
    אם לא מחובר, השתמש בסקיל `composio:composio-connect` ותן למשתמש את קישור החיבור.
 
-## 1. איסוף (24 השעות האחרונות)
+## 1. איסוף
 
 הגדרות ב-`config/morning-reels.json` (`share_account` = החשבון שאליו המשתמש משתף רילסים).
+מצב ב-`state/morning-reels.json`: `last_run` (ISO, UTC) ו-`processed_message_ids`.
+
+**חלון הזמן:**
+- **ריצה ראשונה** (אין `state/morning-reels.json`, או `last_run` ריק): **כל ההיסטוריה** —
+  כל השיחות וכל ההודעות, מההתחלה. עבור על כל העמודים (pagination) עד הסוף.
+- **ריצות הבאות**: רק מה שחדש מאז `last_run`, ובלי הודעות שכבר ב-`processed_message_ids`.
 
 1. `INSTAGRAM_LIST_ALL_CONVERSATIONS` עם `{"limit":100,"fields":"id,updated_time,participants"}`.
-   קח רק שיחות עם `updated_time` מ-24 השעות האחרונות.
+   המשך עם `after` מ-`paging.cursors.after` עד שאין עוד עמודים.
+   בריצה רגילה — קח רק שיחות עם `updated_time` אחרי `last_run`.
 2. לכל שיחה: `INSTAGRAM_LIST_ALL_MESSAGES` עם
-   `{"conversation_id":"...","limit":25,"fields":"id,from,message,created_time,attachments,shares"}`.
+   `{"conversation_id":"...","limit":100,"fields":"id,from,message,created_time,attachments,shares"}`.
+   בריצה ראשונה — עבור על כל העמודים. בריצה רגילה — עצור כשמגיעים להודעה
+   ישנה מ-`last_run`.
 3. מיין:
    - **רילסים ששמרתי**: השיחה עם `share_account`. רילסים מגיעים ב-`shares`/`attachments`
      (קישור לרילס). אם `share_account` ריק — דלג וכתוב בדוח שצריך להגדיר אותו.
@@ -38,6 +47,9 @@ description: >-
 הודעות השמורות (שיחה עם עצמך) לא נגישות דרך ה-API — אל תנסה.
 
 ## 2. לכל רילס
+
+בריצה הראשונה יהיו הרבה פריטים: קבץ לפי יוצר, ועבור על כולם — אל תקצר.
+
 
 1. שלוף כיתוב, יוצר, קישור. לבוטים: הטקסט של הבוט בדרך כלל מסביר מה היה בסרטון;
    השלם עם `WebFetch` על הקישור לרילס / לפרופיל היוצר אם צריך.
@@ -56,6 +68,7 @@ description: >-
    עם `INSTAGRAM_SEND_TEXT_MESSAGE` באותה שיחה. שום טקסט אחר, אף פעם.
    אחרי שליחה — המתן ~30 שניות וקרא שוב את השיחה כדי לקבל את הקישור.
    אם השליחה נכשלה (חלון הודעות סגור, `2534022`) — אל תנסה שוב, דווח.
+   אם המשתמש כבר ענה לכפתור בעבר והבוט כבר שלח קישור — אל תשלח שוב, השתמש בקישור הקיים.
 2. **כפתור web_url** או קישור בטקסט: פתח אותו (`curl -sSL` עוקב אחרי ההפניה של
    ManyChat, ואז WebFetch / Playwright).
 3. אם יש טופס להרשמה למדריך — מלא אותו עם השם (Raziel Saada) והמייל של המשתמש
@@ -96,3 +109,12 @@ description: >-
 מהדוח להתקין — רק כאלה שקיבלו "להתקין". התקן רק מה שהמשתמש סימן במפורש,
 ואחרי ההתקנה הרץ את שלב 4 (עדכונים) ושלב 5 (מבחן ההידלקות) של `skill-review`.
 טיוטות סקילים — commit ו-push לענף של הסשן.
+
+## 6. שמירת מצב (חובה, בסוף כל ריצה)
+
+1. כתוב `state/morning-reels.json`:
+   `{"last_run": "<זמן תחילת הריצה, UTC ISO>", "processed_message_ids": [...]}`
+   (הוסף את מזהי ההודעות שטופלו; שמור עד 2000 אחרונים).
+2. `git add state/ drafts/ && git commit -m "morning-reels: run <date>"` ואז
+   `git push origin ccr-bc06282a-md7h6l` — כך הריצה של מחר תדע מאיפה להמשיך.
+   אם ה-push נכשל — כתוב את זה בשורת הסיכום, אחרת מחר תהיה שוב ריצה מלאה.
