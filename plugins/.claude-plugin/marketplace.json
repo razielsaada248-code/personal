@@ -1,0 +1,8 @@
+{
+  "name": "personal-local",
+  "owner": { "name": "razielsaada" },
+  "plugins": [
+    { "name": "leitstand", "source": "./leitstand", "description": "Status panel: agents, shells, disk, context (reviewed copy, pinned)" },
+    { "name": "plan-progress", "source": "./plan-progress", "description": "Plan progress bars (reviewed copy, pinned, update check off)" }
+  ]
+}

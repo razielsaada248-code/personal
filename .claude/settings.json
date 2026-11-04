@@ -1,0 +1,9 @@
+{
+  "extraKnownMarketplaces": {
+    "personal-local": { "source": { "source": "directory", "path": "./plugins" } }
+  },
+  "enabledPlugins": {
+    "leitstand@personal-local": true,
+    "plan-progress@personal-local": true
+  }
+}
