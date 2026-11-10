@@ -1,0 +1,451 @@
+<title>שגרת אימון</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap">
+<style>
+/* Layout: one narrow phone column, a fixed bottom tab bar, and a 3D stage that owns the top of the workout screen. */
+:root{
+  --bg:#EDF1F5; --surface:#FFFFFF; --ink:#14213A; --muted:#5D6B85; --line:#D5DCE6;
+  --accent:#2D55E0; --accent-ink:#FFFFFF; --soft:#E0E8FB; --ok:#178A5B; --warm:#C96F00; --stage:#DCE5F1;
+  --display:"Secular One","Rubik","Arial Hebrew",Arial,sans-serif;
+  --body:"Rubik","Arial Hebrew","Segoe UI",Arial,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1524; --surface:#172136; --ink:#EAF0FA; --muted:#93A1BC; --line:#2A3752;
+    --accent:#7C9BFF; --accent-ink:#0B1226; --soft:#1E2B4D; --ok:#4CC995; --warm:#F5A742; --stage:#121B2F;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1524; --surface:#172136; --ink:#EAF0FA; --muted:#93A1BC; --line:#2A3752;
+  --accent:#7C9BFF; --accent-ink:#0B1226; --soft:#1E2B4D; --ok:#4CC995; --warm:#F5A742; --stage:#121B2F;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+#app{max-width:560px;margin:0 auto;padding-block:18px 96px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+h1,h2,h3,p{margin:0}
+h1{font-family:var(--display);font-weight:400;font-size:28px;line-height:1.15;text-wrap:balance}
+h2{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.2}
+h3{font-size:16px;font-weight:700}
+.muted{color:var(--muted)} .small{font-size:14px} .num{font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap} .between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.chip{display:inline-block;background:var(--soft);color:var(--accent);border-radius:999px;padding:2px 10px;font-size:13px;font-weight:500}
+.nudge{font-size:17px;font-weight:500;border-inline-start:4px solid var(--warm);padding-inline-start:12px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;border-radius:12px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{background:var(--accent);color:var(--accent-ink);font-weight:700;padding:14px 18px;font-size:17px;width:100%}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.quiet{background:var(--soft);color:var(--ink);font-weight:500;font-size:15px;padding:11px 14px}
+.bar{height:12px;background:var(--soft);border-radius:999px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .35s}
+.bar.ok>i{background:var(--ok)} .bar.thin{height:8px}
+/* week strip */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.day b{width:100%;aspect-ratio:1;max-width:44px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:500;color:var(--ink);font-size:14px}
+.day.done b{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.day.part b{border-color:var(--warm);border-style:dashed}
+.day.today b{border-color:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+.day.done.today b{border-color:var(--ok)}
+.day.rest b{border-style:dotted;color:var(--muted)}
+/* workout */
+.stage{background:var(--stage);border-radius:var(--r);position:relative;overflow:hidden;touch-action:pan-y}
+.stage canvas{display:block;width:100%;height:270px;cursor:grab}
+.stage .hint{position:absolute;inset-inline-start:12px;bottom:8px;font-size:12px;color:var(--muted)}
+.stage .play{position:absolute;inset-inline-end:8px;bottom:6px;background:var(--surface);border:1px solid var(--line);padding:4px 12px;font-size:13px}
+.stage .nogl{padding:40px 16px;text-align:center;color:var(--muted)}
+.cues{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:4px;font-size:15px}
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ex.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--soft)}
+.ex.fin .exname{color:var(--ok)}
+.exhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;width:100%;text-align:start;padding:0}
+.exname{font-weight:700;font-size:17px}
+.sets{display:flex;gap:8px;flex-wrap:wrap}
+.set{min-width:64px;padding:10px 12px;border:1.5px solid var(--line);background:var(--bg);font-weight:500;font-size:15px}
+.set.on{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.set.hold{border-color:var(--warm)}
+.sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;display:flex;flex-direction:column;gap:8px}
+.timer{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.timer .bar{background:color-mix(in srgb,var(--bg) 25%,transparent)} .timer .bar>i{background:var(--warm);transition:width 1s linear}
+.timer button{background:var(--bg);color:var(--ink);padding:4px 12px;font-size:14px}
+.timer .big{font-family:var(--display);font-size:24px}
+/* progress */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;text-align:center}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:28px;line-height:1.1}
+.stat span{font-size:13px;color:var(--muted)}
+.grid12{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.wk{border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+.wk.cur{border-color:var(--accent)}
+.pips{display:flex;gap:4px}.pips i{flex:1;height:8px;border-radius:4px;background:var(--soft)}.pips i.on{background:var(--ok)}.pips i.bonus.on{background:var(--warm)}
+input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;width:110px}
+.guide h3{margin-top:4px}.guide ul{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:5px}
+.warn{border-inline-start:4px solid var(--warm);padding-inline-start:12px}
+/* tabs */
+.tabs{position:fixed;inset:auto 0 0 0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tabs div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr)}
+.tabs button{padding:14px 4px;font-weight:500;color:var(--muted);border-radius:0;border-top:3px solid transparent}
+.tabs button[aria-current=true]{color:var(--accent);border-top-color:var(--accent)}
+@media (prefers-reduced-motion: reduce){.bar>i{transition:none}}
+</style>
+
+<div id="app" dir="rtl" lang="he"></div>
+<nav class="tabs" dir="rtl" aria-label="ניווט"><div>
+  <button data-tab="today" id="tab-today">היום</button>
+  <button data-tab="progress" id="tab-progress">התקדמות</button>
+  <button data-tab="guide" id="tab-guide">מדריך</button>
+</div></nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+document.documentElement.lang="he";
+
+/* ============ תוכנית ============ */
+const EX={
+  squat:{n:"סקוואט",u:"reps",r:[8,10,12],c:["רגליים ברוחב הכתפיים, כפות הרגליים מעט החוצה","יורדים כאילו מתיישבים על כיסא, הגב ארוך וישר","הברכיים בכיוון האצבעות, עקבים על הרצפה"]},
+  inclinePush:{n:"שכיבות סמיכה בשיפוע",u:"reps",r:[6,8,10],c:["ידיים על כיסא יציב או שולחן, הגוף קו ישר","יורדים לאט עד שהחזה קרוב למשענת","בטן אסופה, האגן לא צונח"]},
+  kneePush:{n:"שכיבות סמיכה על הברכיים",u:"reps",r:[5,8,10],c:["ברכיים על מזרן, קו ישר מהברכיים עד הראש","מרפקים בזווית של 45 מעלות מהגוף","ירידה איטית, דחיפה חזקה למעלה"]},
+  row:{n:"חתירה עם תיק",u:"reps",r:[8,10,12],c:["תיק גב עם ספרים (מתחילים ב־4–5 ק״ג)","מתקפלים מהירכיים, גב ישר, ברכיים מעט כפופות","מושכים את המרפקים לאחור ומקרבים שכמות"]},
+  bridge:{n:"גשר ישבן",u:"reps",r:[10,12,15],c:["שוכבים על הגב, ברכיים כפופות, כפות רגליים על הרצפה","מרימים אגן עד קו ישר מכתפיים לברכיים","מכווצים ישבן שנייה למעלה, יורדים לאט"]},
+  birddog:{n:"בירד־דוג",u:"side",r:[6,7,8],c:["עמידת שש, גב שטוח כמו שולחן","שולחים יד אחת ורגל נגדית, לאט","האגן לא מסתובב. עוצרים שנייה ומחליפים"]},
+  plank:{n:"פלאנק",u:"sec",r:[20,30,40],c:["אמות על הרצפה, מרפקים מתחת לכתפיים","גוף קו ישר, ישבן ובטן מכווצים","נושמים רגיל, לא עוצרים אוויר"]},
+  lunge:{n:"מכרע לאחור",u:"side",r:[6,8,10],c:["צעד גדול אחורה, שתי הברכיים מתכופפות","הגו נשאר זקוף, הברך הקדמית מעל הקרסול","דוחפים מהרגל הקדמית בחזרה לעמידה"]},
+  superman:{n:"הרמות חזה בשכיבה (W)",u:"reps",r:[8,10,12],c:["שוכבים על הבטן, ידיים בצורת W","מרימים מעט חזה וידיים, מקרבים שכמות","המבט לרצפה, בלי להקשית חזק את הגב התחתון"]},
+  deadbug:{n:"דד־באג",u:"side",r:[6,8,10],c:["על הגב, ידיים לתקרה, ברכיים ב־90 מעלות","מורידים יד ורגל נגדית לאט לכיוון הרצפה","הגב התחתון נשאר צמוד למזרן כל הזמן"]},
+  sidePlank:{n:"פלאנק צידי",u:"secside",r:[15,20,30],c:["אמה על הרצפה, מרפק מתחת לכתף","מרימים אגן לקו ישר","אותו זמן בדיוק בשני הצדדים. קשה מדי? ברכיים על הרצפה"]},
+  catcow:{n:"חתול־פרה",u:"reps",r:[8,10,10],c:["עמידת שש, ידיים מתחת לכתפיים","שאיפה: מקשיתים בעדינות ומרימים מבט","נשיפה: מעגלים את הגב לתקרה, לאט ובלי כאב"]},
+  calf:{n:"הרמות עקבים",u:"reps",r:[12,14,15],c:["עומדים זקוף, אפשר לגעת בקיר לשיווי משקל","עולים על קצות האצבעות הכי גבוה שאפשר","עוצרים שנייה, יורדים לאט"]},
+};
+const WK={
+  A:{n:"אימון א׳ · בסיס",ex:["squat","inclinePush","row","bridge","birddog","plank"]},
+  B:{n:"אימון ב׳ · יציבות",ex:["lunge","kneePush","superman","deadbug","sidePlank","catcow"]},
+  C:{n:"אימון ג׳ · כוח",ex:["squat","inclinePush","row","calf","bridge","plank"]},
+  D:{n:"בונוס · יציבה וליבה",ex:["catcow","birddog","deadbug","sidePlank","superman"]},
+};
+const LINES=["לא צריך חשק. צריך רק להתחיל את הסט הראשון.","אימון בינוני שעשית שווה יותר מאימון מושלם שדילגת עליו.","עשר דקות עכשיו, ואתה אדם שמתאמן.","הגוף נבנה מהימים שלא התחשק לך.","יום שלם על כיסא. הגב שלך מחכה לזה.","לא מדלגים פעמיים ברצף.","קטן וקבוע מנצח גדול ולפעמים."];
+const HE_DAYS=["א","ב","ג","ד","ה","ו","ש"];
+
+/* ============ מצב ושמירה ============ */
+const KEY="shigrat-imun-v1";
+let S={v:1,updated:0,start:null,days:{},weights:[]};
+try{const raw=localStorage.getItem(KEY);if(raw){const p=JSON.parse(raw);if(p&&p.days)S=p}}catch(e){}
+let ref=null,pushT=null,pushing=false,dirty=false;
+function save(){S.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  if(ref){dirty=true;clearTimeout(pushT);pushT=setTimeout(push,1500)}}
+async function push(){if(!ref||pushing)return;pushing=true;dirty=false;
+  try{await ref.set({json:JSON.stringify(S),updated:S.updated})}catch(e){}
+  pushing=false;if(dirty){clearTimeout(pushT);pushT=setTimeout(push,1500)}}
+async function initSync(){try{
+  if(!window.claude||!window.claude.use)return;
+  const [db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
+  if(!db||!user)return;const id=await user.id();if(!id)return;
+  ref=db.collection("data/users/"+id).doc("state");
+  const snap=await ref.get();const d=snap.exists?snap.data():null;
+  if(d&&d.json){const remote=JSON.parse(d.json);
+    if((remote.updated||0)>(S.updated||0)){S=remote;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};render()}
+    else if((S.updated||0)>(remote.updated||0))push()}
+  else if(S.updated)push();
+}catch(e){}}
+
+/* ============ תאריכים וחישובים ============ */
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=s=>{const a=s.split("-");return new Date(+a[0],a[1]-1,+a[2])};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const weekStart=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-x.getDay());return x};
+const today=()=>new Date();
+const tkey=()=>ymd(today());
+function weekCount(ws){let n=0;for(let i=0;i<7;i++){const e=S.days[ymd(addDays(ws,i))];if(e&&e.done)n++}return n}
+function progWeek(){if(!S.start)return 1;return Math.max(1,Math.round((weekStart(today())-weekStart(parse(S.start)))/6048e5)+1)}
+function totalDone(){return Object.values(S.days).filter(e=>e.done).length}
+function nextW(){if(weekCount(weekStart(today()))>=3)return"D";
+  const n=Object.values(S.days).filter(e=>e.done&&e.w!=="D").length;return"ABC"[n%3]}
+function streak(){let ws=weekStart(today()),n=0;if(weekCount(ws)>=3)n=1;ws=addDays(ws,-7);
+  while(weekCount(ws)>=3){n++;ws=addDays(ws,-7)}return n}
+function daysSince(){const ks=Object.keys(S.days).filter(k=>S.days[k].done).sort();if(!ks.length)return null;
+  return Math.round((parse(tkey())-parse(ks[ks.length-1]))/864e5)}
+function lvl(){const w=progWeek();return w<=4?0:w<=8?1:2}
+function target(id){const e=EX[id],v=e.r[lvl()];
+  return e.u==="reps"?v+" חזרות":e.u==="side"?v+" לכל צד":e.u==="sec"?v+" שניות":v+" שנ׳ לכל צד"}
+function buildPlan(w,mini){const sets=(w==="D"||progWeek()<=2)?2:3;let ex=WK[w].ex;
+  if(mini)return ex.slice(0,3).map(id=>[id,Math.min(2,sets)]);return ex.map(id=>[id,sets])}
+const sum=a=>a.reduce((x,y)=>x+y,0);
+function dayPct(e){if(!e)return 0;const t=sum(e.plan.map(p=>p[1]));return t?Math.round(100*sum(e.sets)/t):0}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ============ מסכים ============ */
+let tab="today",view="home",sel=0,tiredOpen=false,satOverride=false,timer=null,tick=null,msg="";
+const app=document.getElementById("app");
+
+function render(){
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===tab));
+  if(tab==="today"&&view==="workout"&&S.days[tkey()]&&!S.days[tkey()].done)return renderWorkout();
+  view="home";viewer.stop();
+  app.innerHTML=tab==="today"?homeHTML():tab==="progress"?progressHTML():guideHTML();
+}
+
+function nudge(){
+  const t=today(),e=S.days[tkey()],ds=daysSince(),wc=weekCount(weekStart(t));
+  if(e&&e.done)return wc>=3?"סגרת את השבוע. "+wc+" אימונים, כל הכבוד.":"האימון של היום בוצע. מחר מנוחה או הליכה.";
+  if(t.getDay()===6&&!satOverride)return"שבת. היום נחים, הגוף נבנה גם במנוחה.";
+  if(e)return"התחלת כבר. נשאר רק לסיים.";
+  const left=3-wc,daysLeft=6-t.getDay();
+  if(left>0&&left>=daysLeft)return"כדי לסגור 3 אימונים השבוע, היום חייבים. "+(left>daysLeft?"גם אימון מינימום נחשב.":"");
+  if(ds===null)return"האימון הראשון הוא הכי קל: כ־20 דקות, בלי ציוד מיוחד.";
+  if(ds===1)return wc>=3?"יום מנוחה. מגיע לך.":"התאמנת אתמול. היום אפשר לנוח, או להתקדם אם יש כוח.";
+  if(ds>=3)return"עברו "+ds+" ימים מהאימון האחרון. היום חוזרים, אפילו ל־8 דקות.";
+  return LINES[Math.floor(t/864e5)%LINES.length];
+}
+
+function weekHTML(){
+  const ws=weekStart(today()),tk=tkey();let h='<div class="week">';
+  for(let i=0;i<7;i++){const k=ymd(addDays(ws,i)),e=S.days[k];
+    const cls=["day",e&&e.done?"done":e&&sum(e.sets)?"part":"",k===tk?"today":"",i===6?"rest":""].join(" ");
+    h+='<div class="'+cls+'"><b>'+(e&&e.done?"✓":HE_DAYS[i])+'</b><span>'+(i===6?"מנוחה":e&&e.done?(e.mini?"מיני":e.w==="D"?"בונוס":"בוצע"):"&nbsp;")+'</span></div>'}
+  return h+'</div>';
+}
+
+function homeHTML(){
+  const t=today(),e=S.days[tkey()],wc=weekCount(weekStart(t)),w=e?e.w:nextW(),sat=t.getDay()===6&&!satOverride&&!e;
+  const plan=e?e.plan:buildPlan(w,false),mins=Math.round(sum(plan.map(p=>p[1]))*1.5+3),pct=dayPct(e);
+  let h='<header class="stack"><div class="row between"><span class="muted small">'+t.toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})+
+    '</span><span class="chip">שבוע '+progWeek()+' מתוך 12</span></div><h1>'+(e&&e.done?"בוצע להיום":sat?"יום מנוחה":"האימון של היום")+'</h1></header>';
+  h+='<p class="nudge">'+nudge()+'</p>';
+  if(msg){h+='<p class="chip" style="align-self:flex-start">'+esc(msg)+'</p>';msg=""}
+  h+='<section class="card"><div class="row between"><h2>'+WK[w].n+(e&&e.mini?" (מינימום)":"")+'</h2><span class="muted small num">'+plan.length+' תרגילים · כ־'+mins+' דק׳</span></div>';
+  h+='<div class="stack" style="gap:6px"><div class="row between small"><span>התקדמות היום</span><b class="num">'+pct+'%</b></div><div class="bar '+(e&&e.done?"ok":"")+'"><i style="width:'+pct+'%"></i></div></div>';
+  h+='<p class="muted small">'+plan.map(p=>EX[p[0]].n).join(" · ")+'</p>';
+  if(e&&e.done){h+='<p><b>'+(wc>=3?"יעד השבוע הושג.":"עוד "+(3-wc)+" השבוע.")+'</b> לשתות, לאכול ארוחה עם חלבון, ולישון טוב.</p>'}
+  else if(sat){h+='<button class="btn quiet" data-act="sat">מוצאי שבת? להתאמן בכל זאת</button>'}
+  else if(e){h+='<button class="btn" data-act="resume">המשך אימון</button>'}
+  else{
+    h+='<button class="btn" data-act="start">התחל אימון</button>';
+    if(!tiredOpen)h+='<button class="btn quiet" data-act="tired">עייף היום?</button>';
+    else h+='<div class="stack warn"><p><b>כלל חמש הדקות.</b> מתחילים רק את התרגיל הראשון. אם אחרי סט אחד עדיין אין כוח, עוצרים בלי רגשות אשם. ברוב הפעמים תמשיך.</p>'+
+      '<button class="btn ghost" data-act="mini">אימון מינימום · 3 תרגילים, 8 דקות</button><p class="muted small">אימון מינימום נחשב לאימון מלא ביעד השבועי.</p></div>';
+  }
+  h+='</section>';
+  h+='<section class="card"><div class="row between"><h2>השבוע</h2><b class="num">'+Math.min(wc,3)+'/3'+(wc>3?" + בונוס":"")+'</b></div><div class="bar '+(wc>=3?"ok":"")+'"><i style="width:'+Math.min(100,wc/3*100)+'%"></i></div>'+weekHTML()+
+    '<p class="muted small">היעד: 3 אימונים בשבוע, עם יום מנוחה ביניהם. אימון רביעי הוא בונוס קל ליציבה.</p></section>';
+  return h;
+}
+
+function renderWorkout(){
+  const e=S.days[tkey()],tot=sum(e.plan.map(p=>p[1])),done=sum(e.sets),pct=dayPct(e);
+  if(sel>=e.plan.length)sel=0;const id=e.plan[sel][0];
+  let h='<div class="sticky"><div class="row between"><button class="chip" data-act="back">→ חזרה</button><b>'+WK[e.w].n+'</b><span class="num small">'+done+'/'+tot+' סטים</span></div>'+
+    '<div class="bar"><i style="width:'+pct+'%"></i></div><div id="timerSlot"></div></div>';
+  h+='<div class="stage" id="stageSlot"></div>';
+  h+='<div class="stack" style="gap:6px"><div class="row between"><h2>'+EX[id].n+'</h2><span class="chip num">'+e.plan[sel][1]+' × '+target(id)+'</span></div><ul class="cues">'+EX[id].c.map(c=>"<li>"+c+"</li>").join("")+'</ul></div>';
+  e.plan.forEach((p,i)=>{const x=EX[p[0]],fin=e.sets[i]>=p[1];
+    h+='<div class="ex '+(i===sel?"sel ":"")+(fin?"fin":"")+'"><button class="exhead" data-act="sel" data-i="'+i+'"><span class="exname">'+(fin?"✓ ":"")+x.n+'</span><span class="muted small num">'+target(p[0])+'</span></button><div class="sets">';
+    for(let s=0;s<p[1];s++){const on=s<e.sets[i],holding=timer&&timer.kind==="hold"&&timer.i===i&&s===e.sets[i];
+      h+='<button class="set '+(on?"on":"")+(holding?" hold":"")+'" data-act="set" data-i="'+i+'" data-s="'+s+'" aria-pressed="'+on+'">'+(on?"✓ ":"")+'סט '+(s+1)+'</button>'}
+    h+='</div></div>'});
+  h+='<button class="btn ghost" data-act="finish">סיום ויציאה</button><p class="muted small">מעל חצי מהסטים נחשב לאימון שבוצע. סובבו את הדמות עם האצבע כדי לראות מכל זווית.</p>';
+  app.innerHTML=h;
+  viewer.mount(document.getElementById("stageSlot"),id);
+  drawTimer();
+}
+
+function drawTimer(){const slot=document.getElementById("timerSlot");if(!slot)return;
+  if(!timer){slot.innerHTML="";return}
+  const label=timer.kind==="rest"?"מנוחה":(timer.split&&timer.left<=timer.total/2?"צד שני":"מחזיקים");
+  slot.innerHTML='<div class="timer" role="timer"><div class="row between"><span>'+label+'</span><span class="big num">'+timer.left+'</span><button data-act="skip">'+(timer.kind==="rest"?"דלג":"סיימתי")+'</button></div><div class="bar thin"><i style="width:'+(100*timer.left/timer.total)+'%"></i></div></div>';
+}
+function startTimer(kind,secs,i,split){clearInterval(tick);timer={kind,left:secs,total:secs,i,split};
+  tick=setInterval(()=>{timer.left--;if(timer.left<=0){endTimer(true)}else drawTimer()},1000)}
+function endTimer(natural){clearInterval(tick);const t=timer;timer=null;
+  try{if(natural&&navigator.vibrate)navigator.vibrate(200)}catch(e){}
+  if(t&&t.kind==="hold")markSet(t.i);else if(view==="workout")drawTimer()}
+function markSet(i){const e=S.days[tkey()];if(!e)return;e.sets[i]=Math.min(e.plan[i][1],e.sets[i]+1);
+  const all=e.plan.every((p,j)=>e.sets[j]>=p[1]);
+  if(all){e.done=true;clearInterval(tick);timer=null;save();view="home";msg="אימון מספר "+totalDone()+" הושלם";render();return}
+  if(e.sets[i]>=e.plan[i][1]){const nx=e.plan.findIndex((p,j)=>e.sets[j]<p[1]);if(nx>=0)sel=nx}
+  save();startTimer("rest",i===sel?60:45,i);renderWorkout()}
+
+function startDay(mini){const w=nextW(),plan=buildPlan(w,mini);if(!S.start)S.start=tkey();
+  S.days[tkey()]={w,mini:!!mini,plan,sets:plan.map(()=>0),done:false};save();sel=0;view="workout";tiredOpen=false;render();scrollTo(0,0)}
+
+document.addEventListener("click",ev=>{
+  const tb=ev.target.closest("[data-tab]");if(tb){tab=tb.dataset.tab;view="home";render();scrollTo(0,0);return}
+  const b=ev.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,e=S.days[tkey()];
+  if(a==="start")startDay(false);
+  else if(a==="mini")startDay(true);
+  else if(a==="tired"){tiredOpen=true;render()}
+  else if(a==="sat"){satOverride=true;render()}
+  else if(a==="resume"){view="workout";render();scrollTo(0,0)}
+  else if(a==="back"){view="home";render()}
+  else if(a==="sel"){sel=+b.dataset.i;renderWorkout()}
+  else if(a==="skip"){endTimer(false)}
+  else if(a==="set"){const i=+b.dataset.i,s=+b.dataset.s;sel=i;
+    if(s<e.sets[i]){e.sets[i]=s;save();renderWorkout();return}
+    if(s>e.sets[i]){renderWorkout();return}
+    const x=EX[e.plan[i][0]],isHold=x.u==="sec"||x.u==="secside";
+    if(isHold&&!(timer&&timer.kind==="hold"&&timer.i===i)){const v=x.r[lvl()];startTimer("hold",x.u==="secside"?v*2:v,i,x.u==="secside");renderWorkout();return}
+    if(timer&&timer.kind==="hold"){clearInterval(tick);timer=null}
+    markSet(i)}
+  else if(a==="finish"){clearInterval(tick);timer=null;if(dayPct(e)>=50){e.done=true;msg="אימון מספר "+(totalDone())+" נרשם"}else msg="נשמר כאימון חלקי. אפשר להמשיך אחר כך.";
+    if(!sum(e.sets))delete S.days[tkey()];save();view="home";render()}
+  else if(a==="addw"){const inp=document.getElementById("weightInput"),kg=parseFloat(inp.value);
+    if(kg>30&&kg<200){S.weights=S.weights.filter(x=>x.d!==tkey());S.weights.push({d:tkey(),kg:Math.round(kg*10)/10});save();render()}}
+});
+
+function progressHTML(){
+  const pw=progWeek(),cur=weekStart(today()),base=S.start?weekStart(parse(S.start)):cur;
+  let h='<header><h1>ההתקדמות שלך</h1></header><div class="stats"><div class="stat"><b class="num">'+totalDone()+'</b><span>אימונים</span></div><div class="stat"><b class="num">'+streak()+'</b><span>שבועות ברצף</span></div><div class="stat"><b class="num">'+Math.min(pw,12)+'/12</b><span>שבוע בתוכנית</span></div></div>';
+  let dn=0;h+='<section class="card"><h2>12 השבועות</h2><div class="grid12">';
+  for(let i=0;i<12;i++){const c=weekCount(addDays(base,i*7));dn+=Math.min(c,3);
+    h+='<div class="wk '+(i+1===pw?"cur":"")+'"><span>שבוע '+(i+1)+'</span><div class="pips">'+[0,1,2].map(j=>'<i class="'+(c>j?"on":"")+'"></i>').join("")+'<i class="bonus '+(c>3?"on":"")+'"></i></div></div>'}
+  h+='</div><div class="row between small"><span>'+dn+' מתוך 36 אימוני חובה</span><b class="num">'+Math.round(dn/36*100)+'%</b></div><div class="bar"><i style="width:'+(dn/36*100)+'%"></i></div><p class="muted small">שבועות 1–2: שני סטים. משבוע 3: שלושה סטים. בשבועות 5 ו־9 היעד בכל תרגיל עולה.</p></section>';
+  const ws=S.weights.slice().sort((a,b)=>a.d<b.d?-1:1);
+  h+='<section class="card"><h2>משקל</h2>';
+  if(ws.length){const f=ws[0].kg,l=ws[ws.length-1].kg,goal=Math.max(58,f+4),p=Math.max(0,Math.min(100,(l-f)/(goal-f)*100));
+    h+='<div class="row between"><span class="num"><b style="font-size:22px">'+l+'</b> ק״ג</span><span class="muted small num">התחלה '+f+' · יעד ראשון '+goal+'</span></div><div class="bar ok"><i style="width:'+p+'%"></i></div>';
+    if(ws.length>1){const mn=Math.min(...ws.map(x=>x.kg))-.5,mx=Math.max(...ws.map(x=>x.kg))+.5,pts=ws.map((x,i)=>(8+i*(284/(ws.length-1))).toFixed(1)+","+(52-(x.kg-mn)/(mx-mn)*44).toFixed(1));
+      h+='<svg viewBox="0 0 300 60" role="img" aria-label="גרף משקל" style="width:100%;height:auto"><polyline points="'+pts.join(" ")+'" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="'+pts[pts.length-1].split(",")[0]+'" cy="'+pts[pts.length-1].split(",")[1]+'" r="4" fill="var(--accent)"/></svg>'}
+  }else h+='<p class="muted">עדיין אין שקילות. נשקלים פעם בשבוע, בבוקר, באותו יום. עלייה של רבע עד חצי קילו בשבוע היא קצב טוב.</p>';
+  h+='<div class="row"><label for="weightInput" class="small">שקילה היום (ק״ג)</label><input id="weightInput" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="54.0"><button class="btn quiet" style="width:auto" data-act="addw">שמור</button></div></section>';
+  return h;
+}
+
+function guideHTML(){return '<header><h1>איך זה עובד</h1></header>'+
+'<section class="card guide"><h2>לפני שמתחילים</h2><p class="warn">יש לך עקמת, ולכן כדאי להראות את התוכנית לרופא, לאורתופד או לפיזיותרפיסט לפני האימון הראשון. הם מכירים את העקומה שלך ויכולים להתאים תרגילים. התוכנית כאן כללית ועדינה, ואינה תחליף לייעוץ אישי.</p><ul><li>כאב חד, כאב שמקרין ליד או לרגל, או נימול: עוצרים את התרגיל.</li><li>שריר שעובד ושורף זה תקין. כאב במפרק או בגב זה לא.</li><li>עובדים על שני הצדדים באותה כמות, גם אם צד אחד מרגיש חזק יותר.</li><li>בלי משקל כבד על הכתפיים או על הגב בחודשים הראשונים.</li></ul></section>'+
+'<section class="card guide"><h2>התוכנית</h2><ul><li>שלושה אימונים בשבוע (א׳, ב׳, ג׳) שמתחלפים בסדר קבוע, כ־25 דקות כל אחד.</li><li>אימון רביעי הוא בונוס קל ליציבה ולשרירי הליבה.</li><li>יום מנוחה בין אימון לאימון. בשבת נחים.</li><li>מנוחה של כדקה בין סטים. האפליקציה סופרת בשבילך.</li><li>כשמצליחים את כל הסטים ביעד בקלות, מוסיפים חזרה או ספר לתיק.</li></ul><h3>ציוד</h3><ul><li>מזרן או שטיח</li><li>כיסא יציב או שולחן</li><li>תיק גב עם ספרים</li></ul></section>'+
+'<section class="card guide"><h2>כשאין כוח</h2><ul><li>כלל חמש הדקות: מתחילים סט אחד. מותר לעצור אחריו.</li><li>אימון מינימום (3 תרגילים) נחשב. העיקר לא לשבור את הרצף.</li><li>לא מדלגים פעמיים ברצף. דילגת אתמול? היום עושים, אפילו קצר.</li><li>קובעים שעה קבועה, למשל מיד אחרי הסדר או לפני ארוחת הערב.</li></ul></section>'+
+'<section class="card guide"><h2>אוכל ושינה</h2><p>בגובה 176 ובמשקל 54 ק״ג, האימון לבדו לא יבנה שריר. צריך לאכול יותר ממה שאתה רגיל.</p><ul><li>שלוש ארוחות ועוד שתי ארוחות ביניים בכל יום.</li><li>חלבון בכל ארוחה: ביצים, קוטג׳, טונה, עוף, קטניות, טחינה. יעד של כ־90 גרם ביום.</li><li>תוספות קלות: חמאת בוטנים, אגוזים, שמן זית, כוס חלב.</li><li>7–9 שעות שינה. השריר נבנה בלילה.</li></ul></section>'+
+'<section class="card guide"><h2>ישיבה ארוכה</h2><ul><li>כל 45 דקות קמים לדקה, גם באמצע סדר וגם מול המחשב.</li><li>מסך בגובה העיניים, כפות רגליים על הרצפה.</li><li>חתול־פרה ובירד־דוג אפשר לעשות גם בימי מנוחה.</li></ul></section>'}
+
+/* ============ הדמיית תלת־ממד ============ */
+/* זוויות במעלות סביב ציר X: חיובי = גו נוטה קדימה / גפה נעה לאחור. מערך = [x,y,z]. */
+const QUAD={root:[78,0,0],hip:-78,kn:90,ank:80,sh:-78,head:-20};
+const ANIM={
+  squat:{T:3.2,cam:[.86,4.1],pin:["toeL",.15],a:{sh:-15},b:{root:[32,0,0],spine:8,hip:-127,kn:115,ank:-20,sh:-130,el:-10,head:-25}},
+  lunge:{T:3.4,cam:[.86,4.1],pin:["toeL",.35],a:{sh:-5},b:{spine:4,hipL:-85,knL:85,hipR:12,knR:83,ankR:-35,sh:-5,el:-15}},
+  calf:{T:2.4,cam:[.86,4.1],a:{sh:-5},b:{ank:35,sh:-5}},
+  row:{T:2.8,cam:[.86,4.1],prop:"bag",a:{root:[45,0,0],spine:10,hip:-65,kn:35,ank:-15,sh:-55,head:-30},b:{root:[45,0,0],spine:10,hip:-65,kn:35,ank:-15,sh:-2,el:-65,head:-30}},
+  bridge:{T:3.2,cam:[.3,3.1],mat:1,pin:["ankL",.5],a:{root:[-90,0,0],hip:-45,kn:111,ank:24},b:{root:[-115,0,0],kn:115,sh:25,head:25}},
+  plank:{T:4,cam:[.3,3.1],mat:1,pin:["toeL",-.75],a:{root:[80,0,0],sh:-80,el:-90,head:-15,ank:10},b:{root:[79,0,0],sh:-79,el:-90,head:-15,ank:10}},
+  sidePlank:{T:4,cam:[.35,3.1],mat:1,az:20,a:{root:[74,90,0],shR:[0,0,-90],elR:-90,shL:[0,0,8]},b:{root:[72.5,90,0],shR:[0,0,-90],elR:-90,shL:[0,0,8]}},
+  birddog:{T:3.6,cam:[.35,3.1],mat:1,alt:1,a:QUAD,b:Object.assign({},QUAD,{hipR:12,knR:0,ankR:60,shL:-168})},
+  deadbug:{T:3.6,cam:[.3,3.1],mat:1,alt:1,a:{root:[-90,0,0],sh:-90,hip:-90,kn:90},b:{root:[-90,0,0],shL:-90,shR:-172,hipR:-90,knR:90,hipL:-14,knL:0}},
+  superman:{T:3.2,cam:[.25,3.1],mat:1,a:{root:[90,0,0],ank:80,sh:[0,0,80],el:[0,0,90]},b:{root:[90,0,0],ank:80,spine:-9,chest:-12,head:-10,sh:[0,28,80],el:[0,0,90]}},
+  catcow:{T:4,cam:[.35,3.1],mat:1,ik:[.21,.05],a:{pos:[0,0,-.25],root:[89,0,0],hip:-89,kn:90,ank:80,spine:-13,chest:-13,head:-28},b:{pos:[0,0,-.25],root:[54,0,0],hip:-54,kn:90,ank:80,spine:18,chest:22,head:38}},
+  inclinePush:{T:3,cam:[.5,3.5],prop:"bench",ik:[.5,.5],pin:["toeL",-.65],a:{root:[49,0,0],ank:20,head:-15},b:{root:[66,0,0],ank:20,head:-15}},
+  kneePush:{T:3,cam:[.3,3.1],mat:1,ik:[.4,.05],pin:["kneeL",-.35],a:{root:[56,0,0],kn:70,head:-15},b:{root:[80,0,0],kn:70,head:-15}},
+};
+const JOINTS=["spine","chest","head","shL","shR","elL","elR","hipL","hipR","knL","knR","ankL","ankR"];
+function norm(p){const o={pos:p.pos||[0,0,0],root:p.root||[0,0,0]};
+  JOINTS.forEach(j=>{const side=j.slice(-1),base=j.slice(0,-1);let v=p[j];
+    if(v===undefined&&(side==="L"||side==="R")&&p[base]!==undefined){v=p[base];if(Array.isArray(v)&&side==="R")v=[v[0],-v[1],-v[2]]}
+    if(v===undefined)v=0;o[j]=Array.isArray(v)?v:[v,0,0]});return o}
+function mirror(o){const m={pos:o.pos,root:o.root};JOINTS.forEach(j=>{const s=j.slice(-1);
+  const src=s==="L"?j.slice(0,-1)+"R":s==="R"?j.slice(0,-1)+"L":j,v=o[src];m[j]=s==="L"||s==="R"?[v[0],-v[1],-v[2]]:v});return m}
+Object.values(ANIM).forEach(a=>{a.A=norm(a.a);a.B=norm(a.b);a.C=a.alt?mirror(a.B):a.B});
+
+const viewer=(function(){
+  const T=window.THREE,el=document.createElement("div");el.style.display="contents";
+  let ok=false,renderer,scene,cam,N={},meshes=[],props={},cur=null,t0=0,raf=0,playing=true,az=62,pausedAt=0;
+  const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const D=Math.PI/180;
+  function init(){
+    if(!T)return;
+    try{renderer=new T.WebGLRenderer({antialias:true,alpha:true})}catch(e){return}
+    renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.shadowMap.enabled=true;
+    scene=new T.Scene();cam=new T.PerspectiveCamera(32,1.3,.1,30);
+    scene.add(new T.HemisphereLight(0xffffff,0x8a94aa,.95));
+    const sun=new T.DirectionalLight(0xffffff,.75);sun.position.set(2.5,5,3);sun.castShadow=true;
+    sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-2,right:2,top:2,bottom:-2,near:.5,far:12});scene.add(sun);
+    const floor=new T.Mesh(new T.CircleGeometry(2.2,48),new T.ShadowMaterial({opacity:.22}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+    const ring=new T.Mesh(new T.RingGeometry(1.55,1.57,64),new T.MeshBasicMaterial({color:0x8695b5,transparent:true,opacity:.5}));ring.rotation.x=-Math.PI/2;ring.position.y=.002;scene.add(ring);
+    const M=c=>new T.MeshStandardMaterial({color:c,roughness:.65,metalness:.05});
+    const skin=M(0xC7D2E8),shirt=M(0x3D63E6),shorts=M(0x1E2B4F),shoe=M(0xF2A33A);
+    const mesh=(g,m,arm)=>{const x=new T.Mesh(g,m);x.castShadow=true;x.userData.arm=!!arm;meshes.push(x);return x};
+    const seg=(len,r,m,arm)=>{const g=new T.Group(),c=mesh(new T.CylinderGeometry(r,r*.85,len,16),m,arm);c.position.y=-len/2;g.add(c,mesh(new T.SphereGeometry(r,16,12),m,arm));return g};
+    const G=(parent,x,y,z)=>{const g=new T.Group();g.position.set(x,y,z);parent.add(g);return g};
+    N.root=new T.Group();scene.add(N.root);
+    const pel=mesh(new T.SphereGeometry(.135,20,14),shorts);pel.scale.set(1.15,.85,.8);N.root.add(pel);
+    N.spine=G(N.root,0,.02,0);const low=mesh(new T.CylinderGeometry(.135,.125,.25,18),shirt);low.position.y=.125;low.scale.z=.72;N.spine.add(low);
+    N.chest=G(N.spine,0,.25,0);const ch=mesh(new T.CylinderGeometry(.175,.135,.25,18),shirt);ch.position.y=.12;ch.scale.z=.68;N.chest.add(ch);
+    const sho=mesh(new T.SphereGeometry(.175,18,12),shirt);sho.position.y=.235;sho.scale.set(1.12,.34,.66);N.chest.add(sho);
+    N.head=G(N.chest,0,.27,0);const neck=mesh(new T.CylinderGeometry(.05,.055,.1,12),skin);neck.position.y=.04;N.head.add(neck);
+    const hd=mesh(new T.SphereGeometry(.105,20,16),skin);hd.position.y=.17;hd.scale.set(.92,1.08,1);N.head.add(hd);
+    const nose=mesh(new T.SphereGeometry(.022,8,6),skin);nose.position.set(0,.16,.102);N.head.add(nose);
+    [["L",1],["R",-1]].forEach(([s,k])=>{
+      N["sh"+s]=G(N.chest,.2*k,.22,0);N["sh"+s].add(seg(.28,.047,shirt,1));
+      N["el"+s]=G(N["sh"+s],0,-.28,0);N["el"+s].add(seg(.26,.04,skin,1));
+      N["hand"+s]=G(N["el"+s],0,-.26,0);N["hand"+s].add(mesh(new T.SphereGeometry(.045,12,10),skin,1));
+      N["hip"+s]=G(N.root,.095*k,-.03,0);N["hip"+s].add(seg(.42,.07,shorts));
+      N["kn"+s]=G(N["hip"+s],0,-.42,0);N["kn"+s].add(seg(.42,.052,skin));N["knee"+s]=N["kn"+s];
+      N["ank"+s]=G(N["kn"+s],0,-.42,0);const ft=mesh(new T.BoxGeometry(.09,.065,.23),shoe);ft.position.set(0,-.035,.065);N["ank"+s].add(ft);
+      N["toe"+s]=G(N["ank"+s],0,-.06,.17);
+    });
+    const P=(g,c,x,y,z)=>{const m=new T.Mesh(g,M(c));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;m.visible=false;return m};
+    props.mat=P(new T.BoxGeometry(.75,.015,2.1),0x6FB3A0,0,.007,0);props.mat.castShadow=false;scene.add(props.mat);
+    props.bench=P(new T.BoxGeometry(.7,.45,.38),0x8C7A66,0,.225,.6);scene.add(props.bench);
+    props.bag=P(new T.BoxGeometry(.3,.34,.16),0xD9534F,-.2,-.2,0);N.handL.add(props.bag);
+    const cv=renderer.domElement;el.appendChild(cv);
+    const hint=document.createElement("span");hint.className="hint";hint.textContent="גררו לסיבוב";el.appendChild(hint);
+    const pb=document.createElement("button");pb.className="play";pb.id="playBtn";el.appendChild(pb);
+    pb.addEventListener("click",()=>{playing=!playing;if(playing){t0+=performance.now()-pausedAt;loop()}else{pausedAt=performance.now();cancelAnimationFrame(raf)}label()});
+    const label=()=>{pb.textContent=playing?"עצור":"נגן"};viewer._label=label;
+    let drag=null;
+    cv.addEventListener("pointerdown",e=>{drag={x:e.clientX,az};cv.setPointerCapture(e.pointerId)});
+    cv.addEventListener("pointermove",e=>{if(drag){az=drag.az-(e.clientX-drag.x)*.6;if(!playing)frame(pausedAt)}});
+    cv.addEventListener("pointerup",()=>drag=null);cv.addEventListener("pointercancel",()=>drag=null);
+    window.addEventListener("resize",()=>{size();if(!playing&&cur)frame(pausedAt)});
+    ok=true;
+  }
+  function size(){if(!ok||!el.parentNode)return;const w=el.parentNode.clientWidth||320,h=270;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+  const box=T?new T.Box3():null,v=T?new T.Vector3():null;
+  function apply(A,B,p,a){
+    const L=(x,y)=>x+(y-x)*p;
+    N.root.position.set(L(A.pos[0],B.pos[0]),0,L(A.pos[2],B.pos[2]));
+    N.root.rotation.set(L(A.root[0],B.root[0])*D,L(A.root[1],B.root[1])*D,L(A.root[2],B.root[2])*D);
+    JOINTS.forEach(j=>N[j].rotation.set(L(A[j][0],B[j][0])*D,L(A[j][1],B[j][1])*D,L(A[j][2],B[j][2])*D));
+    N.root.updateMatrixWorld(true);
+    let min=1e9;meshes.forEach(m=>{if(a.ik&&m.userData.arm)return;if(!m.geometry.boundingBox)m.geometry.computeBoundingBox();
+      box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld);if(box.min.y<min)min=box.min.y});
+    N.root.position.y-=min;
+    if(a.pin){N.root.updateMatrixWorld(true);N[a.pin[0]].getWorldPosition(v);N.root.position.z+=a.pin[1]-v.z}
+    N.root.updateMatrixWorld(true);
+    if(a.ik){const par=N.root.rotation.x+N.spine.rotation.x+N.chest.rotation.x,L1=.28,L2=.26;
+      ["L","R"].forEach(s=>{N["sh"+s].getWorldPosition(v);const dy=a.ik[1]-v.y,dz=a.ik[0]-v.z;
+        const d=Math.min(Math.hypot(dy,dz),L1+L2-.002),tt=Math.atan2(-dz,-dy);
+        const al=Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d)))),t1=tt+al;
+        const ey=v.y-L1*Math.cos(t1),ez=v.z-L1*Math.sin(t1),t2=Math.atan2(-(a.ik[0]-ez),-(a.ik[1]-ey));
+        N["sh"+s].rotation.set(t1-par,0,0);N["el"+s].rotation.set(t2-t1,0,0)});
+      N.root.updateMatrixWorld(true)}
+  }
+  function frame(now){
+    const a=ANIM[cur];if(!a)return;const u=((now-t0)/1000/a.T)%2,half=u%1,p=.5-.5*Math.cos(half*2*Math.PI);
+    apply(a.A,u<1?a.B:a.C,p,a);
+    const d=a.cam[1],e=14*D,z=(az+(a.az||0))*D;
+    cam.position.set(Math.sin(z)*Math.cos(e)*d,a.cam[0]+Math.sin(e)*d,Math.cos(z)*Math.cos(e)*d);cam.lookAt(0,a.cam[0],0);
+    renderer.render(scene,cam);
+  }
+  function loop(){cancelAnimationFrame(raf);const step=now=>{frame(now);if(playing&&el.isConnected)raf=requestAnimationFrame(step)};raf=requestAnimationFrame(step)}
+  return{el,
+    mount(slot,id){if(!renderer&&!ok)init();
+      if(!ok){slot.innerHTML='<p class="nogl">ההדמיה לא נטענה במכשיר הזה. ההנחיות למטה מספיקות כדי לבצע את התרגיל.</p>';return}
+      slot.appendChild(el);size();
+      if(id!==cur){cur=id;t0=performance.now();const a=ANIM[id];props.mat.visible=!!a.mat;props.bench.visible=a.prop==="bench";props.bag.visible=a.prop==="bag";
+        if(reduce&&playing){playing=false;pausedAt=t0+a.T*500}}
+      viewer._label();if(playing)loop();else frame(pausedAt)},
+    stop(){cancelAnimationFrame(raf)},
+    debug(id,phase,azv){if(!ok)init();cur=id;az=azv;const a=ANIM[id];props.mat.visible=!!a.mat;props.bench.visible=a.prop==="bench";props.bag.visible=a.prop==="bag";t0=0;playing=false;frame(phase*a.T*1000)}
+  };
+})();
+
+render();
+initSync();
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&ref&&dirty)push()});
+</script>
