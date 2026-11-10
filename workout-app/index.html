@@ -90,7 +90,11 @@ input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1.5
 /* tabs */
 .tabs{position:fixed;inset:auto 0 0 0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.tabs div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr)}
+.tabs div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.foods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.food{border:1.5px solid var(--line);background:var(--bg);padding:10px 12px;text-align:start;display:flex;flex-direction:column;gap:2px;min-width:0;font-weight:500;font-size:15px}
+.food.has{border-color:var(--ok)} .food b{color:var(--ok)}
+.chip.pain{color:var(--warm)} button.chip{padding:6px 12px}
 .tabs button{padding:14px 4px;font-weight:500;color:var(--muted);border-radius:0;border-top:3px solid transparent}
 .tabs button[aria-current=true]{color:var(--accent);border-top-color:var(--accent)}
 @media (prefers-reduced-motion: reduce){.bar>i{transition:none}}
@@ -99,6 +103,7 @@ input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1.5
 <div id="app" dir="rtl" lang="he"></div>
 <nav class="tabs" dir="rtl" aria-label="ניווט"><div>
   <button data-tab="today" id="tab-today">היום</button>
+  <button data-tab="food" id="tab-food">תזונה</button>
   <button data-tab="progress" id="tab-progress">התקדמות</button>
   <button data-tab="guide" id="tab-guide">מדריך</button>
 </div></nav>
@@ -131,12 +136,19 @@ const WK={
   D:{n:"בונוס · יציבה וליבה",ex:["catcow","birddog","deadbug","sidePlank","superman"]},
 };
 const LINES=["לא צריך חשק. צריך רק להתחיל את הסט הראשון.","אימון בינוני שעשית שווה יותר מאימון מושלם שדילגת עליו.","עשר דקות עכשיו, ואתה אדם שמתאמן.","הגוף נבנה מהימים שלא התחשק לך.","יום שלם על כיסא. הגב שלך מחכה לזה.","לא מדלגים פעמיים ברצף.","קטן וקבוע מנצח גדול ולפעמים."];
+EX.child={n:"תנוחת ילד",u:"sec",r:[30,40,45],c:["יושבים על העקבים ושולחים ידיים רחוק קדימה","נותנים לגב להתארך ולהשתחרר","נשימות איטיות ועמוקות לצדי הצלעות"]};
+const POSTURE=["catcow","birddog","superman","sidePlank","child"];
+const ALT={squat:"bridge",lunge:"squat",inclinePush:"kneePush",kneePush:"inclinePush",row:"superman",bridge:"deadbug",birddog:"deadbug",plank:"deadbug",superman:"birddog",deadbug:"birddog",sidePlank:"birddog",catcow:"child",calf:"bridge",child:"catcow"};
+const FOODS=[["ארוחה בחדר האוכל",700,35],["מנת עוף או בשר",300,35],["קופסת טונה",160,25],["2 ביצים",150,12],["חצי גביע קוטג׳",120,14],["יוגורט חלבון",150,20],["כוס חלב",150,8],["2 פרוסות גבינה צהובה",150,11],["צלחת אורז או פסטה",300,7],["2 פרוסות לחם",160,7],["מנת חומוס או קטניות",250,12],["2 כפות טחינה",180,5],["כף חמאת בוטנים",100,4],["חופן אגוזים",180,5],["בננה",100,1],["שייק חלב, בננה וחמאת בוטנים",450,20],["חצי אבוקדו",160,2],["ארוחה אחרת",500,20]];
+const PROT=95;
 const HE_DAYS=["א","ב","ג","ד","ה","ו","ש"];
 
 /* ============ מצב ושמירה ============ */
 const KEY="shigrat-imun-v1";
 let S={v:1,updated:0,start:null,days:{},weights:[]};
 try{const raw=localStorage.getItem(KEY);if(raw){const p=JSON.parse(raw);if(p&&p.days)S=p}}catch(e){}
+function fix(){S.post=S.post||{};S.food=S.food||{};S.adj=S.adj||{};S.swap=S.swap||{};S.weights=S.weights||[]}
+fix();
 let ref=null,pushT=null,pushing=false,dirty=false;
 function save(){S.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(ref){dirty=true;clearTimeout(pushT);pushT=setTimeout(push,1500)}}
@@ -150,7 +162,7 @@ async function initSync(){try{
   ref=db.collection("data/users/"+id).doc("state");
   const snap=await ref.get();const d=snap.exists?snap.data():null;
   if(d&&d.json){const remote=JSON.parse(d.json);
-    if((remote.updated||0)>(S.updated||0)){S=remote;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};render()}
+    if((remote.updated||0)>(S.updated||0)){S=remote;fix();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};render()}
     else if((S.updated||0)>(remote.updated||0))push()}
   else if(S.updated)push();
 }catch(e){}}
@@ -173,9 +185,17 @@ function streak(){let ws=weekStart(today()),n=0;if(weekCount(ws)>=3)n=1;ws=addDa
 function daysSince(){const ks=Object.keys(S.days).filter(k=>S.days[k].done).sort();if(!ks.length)return null;
   return Math.round((parse(tkey())-parse(ks[ks.length-1]))/864e5)}
 function lvl(){const w=progWeek();return w<=4?0:w<=8?1:2}
-function target(id){const e=EX[id],v=e.r[lvl()];
+function val(id){const e=EX[id],i=lvl()+(S.adj[id]||0),sec=e.u.indexOf("sec")===0;
+  if(i<0)return Math.max(sec?10:3,Math.round(e.r[0]*(1+.25*i)));if(i>2)return e.r[2]+(i-2)*(sec?10:2);return e.r[i]}
+function mapEx(list){const out=[];list.forEach(id=>{let x=id,g=0;while(S.swap[x]&&g++<3)x=S.swap[x];if(!out.includes(x))out.push(x)});return out}
+const kcalGoal=()=>S.goalK||2700;
+function foodDay(){return S.food[tkey()]||{k:0,p:0,log:[]}}
+function foodPct(){const f=foodDay();return Math.round(50*Math.min(1,f.k/kcalGoal())+50*Math.min(1,f.p/PROT))}
+let mode="w";
+function ses(){return mode==="p"?S.post[tkey()]:S.days[tkey()]}
+function target(id){const e=EX[id],v=val(id);
   return e.u==="reps"?v+" חזרות":e.u==="side"?v+" לכל צד":e.u==="sec"?v+" שניות":v+" שנ׳ לכל צד"}
-function buildPlan(w,mini){const sets=(w==="D"||progWeek()<=2)?2:3;let ex=WK[w].ex;
+function buildPlan(w,mini){const sets=(w==="D"||progWeek()<=2)?2:3;let ex=mapEx(WK[w].ex);
   if(mini)return ex.slice(0,3).map(id=>[id,Math.min(2,sets)]);return ex.map(id=>[id,sets])}
 const sum=a=>a.reduce((x,y)=>x+y,0);
 function dayPct(e){if(!e)return 0;const t=sum(e.plan.map(p=>p[1]));return t?Math.round(100*sum(e.sets)/t):0}
@@ -187,9 +207,9 @@ const app=document.getElementById("app");
 
 function render(){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===tab));
-  if(tab==="today"&&view==="workout"&&S.days[tkey()]&&!S.days[tkey()].done)return renderWorkout();
+  if(tab==="today"&&view==="workout"&&ses()&&!ses().done)return renderWorkout();
   view="home";viewer.stop();
-  app.innerHTML=tab==="today"?homeHTML():tab==="progress"?progressHTML():guideHTML();
+  app.innerHTML=tab==="today"?homeHTML():tab==="food"?foodHTML():tab==="progress"?progressHTML():guideHTML();
 }
 
 function nudge(){
@@ -233,18 +253,25 @@ function homeHTML(){
       '<button class="btn ghost" data-act="mini">אימון מינימום · 3 תרגילים, 8 דקות</button><p class="muted small">אימון מינימום נחשב לאימון מלא ביעד השבועי.</p></div>';
   }
   h+='</section>';
+  const fp=foodPct(),po=S.post[tkey()],pp=dayPct(po);
+  h+='<section class="card"><h2>היום שלי</h2>'+
+    [["אימון",pct,e&&e.done],["תזונה",fp,fp>=100],["יציבה",pp,po&&po.done]].map(r=>'<div class="stack" style="gap:4px"><div class="row between small"><span>'+r[0]+'</span><b class="num">'+r[1]+'%</b></div><div class="bar thin '+(r[2]?"ok":"")+'"><i style="width:'+r[1]+'%"></i></div></div>').join("")+
+    (po&&po.done?'<p class="muted small">שגרת היציבה בוצעה היום.</p>':'<button class="btn quiet" data-act="'+(po?"presume":"pstart")+'">'+(po?"המשך שגרת יציבה":"5 דקות יציבה לגב")+'</button><p class="muted small">שגרה קצרה לכל יום, גם בימי מנוחה. היא החלק שהכי תורם לגב אחרי יום של ישיבה.</p>')+
+    '<button class="btn quiet" data-tab="food">רשום מה אכלת</button></section>';
   h+='<section class="card"><div class="row between"><h2>השבוע</h2><b class="num">'+Math.min(wc,3)+'/3'+(wc>3?" + בונוס":"")+'</b></div><div class="bar '+(wc>=3?"ok":"")+'"><i style="width:'+Math.min(100,wc/3*100)+'%"></i></div>'+weekHTML()+
     '<p class="muted small">היעד: 3 אימונים בשבוע, עם יום מנוחה ביניהם. אימון רביעי הוא בונוס קל ליציבה.</p></section>';
   return h;
 }
 
 function renderWorkout(){
-  const e=S.days[tkey()],tot=sum(e.plan.map(p=>p[1])),done=sum(e.sets),pct=dayPct(e);
+  const e=ses(),tot=sum(e.plan.map(p=>p[1])),done=sum(e.sets),pct=dayPct(e);
   if(sel>=e.plan.length)sel=0;const id=e.plan[sel][0];
-  let h='<div class="sticky"><div class="row between"><button class="chip" data-act="back">→ חזרה</button><b>'+WK[e.w].n+'</b><span class="num small">'+done+'/'+tot+' סטים</span></div>'+
+  let h='<div class="sticky"><div class="row between"><button class="chip" data-act="back">→ חזרה</button><b>'+(mode==="p"?"שגרת יציבה":WK[e.w].n)+'</b><span class="num small">'+done+'/'+tot+' סטים</span></div>'+
     '<div class="bar"><i style="width:'+pct+'%"></i></div><div id="timerSlot"></div></div>';
   h+='<div class="stage" id="stageSlot"></div>';
-  h+='<div class="stack" style="gap:6px"><div class="row between"><h2>'+EX[id].n+'</h2><span class="chip num">'+e.plan[sel][1]+' × '+target(id)+'</span></div><ul class="cues">'+EX[id].c.map(c=>"<li>"+c+"</li>").join("")+'</ul></div>';
+  h+='<div class="stack" style="gap:6px"><div class="row between"><h2>'+EX[id].n+'</h2><span class="chip num">'+e.plan[sel][1]+' × '+target(id)+'</span></div><ul class="cues">'+EX[id].c.map(c=>"<li>"+c+"</li>").join("")+'</ul>'+
+    '<div class="row"><span class="small muted">איך התרגיל?</span><button class="chip" data-act="easy">קל מדי</button><button class="chip" data-act="hard">קשה מדי</button><button class="chip pain" data-act="pain">כואב לי</button></div>'+
+    (msg?'<p class="small warn">'+esc(msg)+'</p>':"")+'</div>';msg="";
   e.plan.forEach((p,i)=>{const x=EX[p[0]],fin=e.sets[i]>=p[1];
     h+='<div class="ex '+(i===sel?"sel ":"")+(fin?"fin":"")+'"><button class="exhead" data-act="sel" data-i="'+i+'"><span class="exname">'+(fin?"✓ ":"")+x.n+'</span><span class="muted small num">'+target(p[0])+'</span></button><div class="sets">';
     for(let s=0;s<p[1];s++){const on=s<e.sets[i],holding=timer&&timer.kind==="hold"&&timer.i===i&&s===e.sets[i];
@@ -266,39 +293,66 @@ function startTimer(kind,secs,i,split){clearInterval(tick);timer={kind,left:secs
 function endTimer(natural){clearInterval(tick);const t=timer;timer=null;
   try{if(natural&&navigator.vibrate)navigator.vibrate(200)}catch(e){}
   if(t&&t.kind==="hold")markSet(t.i);else if(view==="workout")drawTimer()}
-function markSet(i){const e=S.days[tkey()];if(!e)return;e.sets[i]=Math.min(e.plan[i][1],e.sets[i]+1);
+function markSet(i){const e=ses();if(!e)return;e.sets[i]=Math.min(e.plan[i][1],e.sets[i]+1);
   const all=e.plan.every((p,j)=>e.sets[j]>=p[1]);
-  if(all){e.done=true;clearInterval(tick);timer=null;save();view="home";msg="אימון מספר "+totalDone()+" הושלם";render();return}
+  if(all){e.done=true;clearInterval(tick);timer=null;save();view="home";msg=mode==="p"?"שגרת היציבה הושלמה":"אימון מספר "+totalDone()+" הושלם";render();return}
   if(e.sets[i]>=e.plan[i][1]){const nx=e.plan.findIndex((p,j)=>e.sets[j]<p[1]);if(nx>=0)sel=nx}
   save();startTimer("rest",i===sel?60:45,i);renderWorkout()}
 
 function startDay(mini){const w=nextW(),plan=buildPlan(w,mini);if(!S.start)S.start=tkey();
-  S.days[tkey()]={w,mini:!!mini,plan,sets:plan.map(()=>0),done:false};save();sel=0;view="workout";tiredOpen=false;render();scrollTo(0,0)}
+  S.days[tkey()]={w,mini:!!mini,plan,sets:plan.map(()=>0),done:false};mode="w";save();sel=0;view="workout";tiredOpen=false;render();scrollTo(0,0)}
 
 document.addEventListener("click",ev=>{
   const tb=ev.target.closest("[data-tab]");if(tb){tab=tb.dataset.tab;view="home";render();scrollTo(0,0);return}
-  const b=ev.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,e=S.days[tkey()];
+  const b=ev.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,e=ses();
   if(a==="start")startDay(false);
   else if(a==="mini")startDay(true);
   else if(a==="tired"){tiredOpen=true;render()}
   else if(a==="sat"){satOverride=true;render()}
-  else if(a==="resume"){view="workout";render();scrollTo(0,0)}
+  else if(a==="resume"){mode="w";view="workout";render();scrollTo(0,0)}
+  else if(a==="pstart"||a==="presume"){mode="p";if(!S.post[tkey()]){const plan=mapEx(POSTURE).map(id=>[id,1]);S.post[tkey()]={plan,sets:plan.map(()=>0),done:false};save()}sel=0;view="workout";render();scrollTo(0,0)}
+  else if(a==="easy"||a==="hard"){const id=e.plan[sel][0];S.adj[id]=Math.max(-2,Math.min(3,(S.adj[id]||0)+(a==="easy"?1:-1)));save();msg="היעד עודכן ל־"+target(id)+". ההתאמה נשמרת לאימונים הבאים.";renderWorkout()}
+  else if(a==="pain"){const id=e.plan[sel][0],alt=ALT[id];S.swap[id]=alt;if(S.swap[alt]===id)delete S.swap[alt];
+    if(e.plan.some(p=>p[0]===alt)&&e.plan.length>1){e.plan.splice(sel,1);e.sets.splice(sel,1);sel=0}else{e.plan[sel][0]=alt;e.sets[sel]=0}
+    clearInterval(tick);timer=null;save();msg=EX[id].n+" הוחלף ב"+EX[alt].n+". כאב שחוזר שווה לספר עליו לרופא או לפיזיותרפיסט.";renderWorkout()}
+  else if(a==="food"){const f=FOODS[+b.dataset.i],d=S.food[tkey()]||(S.food[tkey()]={k:0,p:0,log:[]});d.k+=f[1];d.p+=f[2];d.log.push(+b.dataset.i);save();render()}
+  else if(a==="unfood"){const d=S.food[tkey()];if(d&&d.log.length){const f=FOODS[d.log.pop()];d.k-=f[1];d.p-=f[2];save();render()}}
+  else if(a==="goalup"){S.goalK=kcalGoal()+250;save();render()}
+  else if(a==="resetadj"){S.adj={};S.swap={};save();msg="ההתאמות אופסו";tab="today";render()}
   else if(a==="back"){view="home";render()}
   else if(a==="sel"){sel=+b.dataset.i;renderWorkout()}
   else if(a==="skip"){endTimer(false)}
   else if(a==="set"){const i=+b.dataset.i,s=+b.dataset.s;sel=i;
     if(s<e.sets[i]){e.sets[i]=s;save();renderWorkout();return}
     if(s>e.sets[i]){renderWorkout();return}
-    const x=EX[e.plan[i][0]],isHold=x.u==="sec"||x.u==="secside";
-    if(isHold&&!(timer&&timer.kind==="hold"&&timer.i===i)){const v=x.r[lvl()];startTimer("hold",x.u==="secside"?v*2:v,i,x.u==="secside");renderWorkout();return}
+    const pid=e.plan[i][0],x=EX[pid],isHold=x.u==="sec"||x.u==="secside";
+    if(isHold&&!(timer&&timer.kind==="hold"&&timer.i===i)){const v=val(pid);startTimer("hold",x.u==="secside"?v*2:v,i,x.u==="secside");renderWorkout();return}
     if(timer&&timer.kind==="hold"){clearInterval(tick);timer=null}
     markSet(i)}
-  else if(a==="finish"){clearInterval(tick);timer=null;if(dayPct(e)>=50){e.done=true;msg="אימון מספר "+(totalDone())+" נרשם"}else msg="נשמר כאימון חלקי. אפשר להמשיך אחר כך.";
-    if(!sum(e.sets))delete S.days[tkey()];save();view="home";render()}
+  else if(a==="finish"){clearInterval(tick);timer=null;if(dayPct(e)>=50){e.done=true;msg=mode==="p"?"שגרת היציבה נרשמה":"אימון מספר "+(totalDone())+" נרשם"}else msg="נשמר חלקית. אפשר להמשיך אחר כך.";
+    if(!sum(e.sets))delete (mode==="p"?S.post:S.days)[tkey()];save();view="home";render()}
   else if(a==="addw"){const inp=document.getElementById("weightInput"),kg=parseFloat(inp.value);
     if(kg>30&&kg<200){S.weights=S.weights.filter(x=>x.d!==tkey());S.weights.push({d:tkey(),kg:Math.round(kg*10)/10});save();render()}}
 });
 
+function foodHTML(){
+  const f=foodDay(),kg=kcalGoal(),ws=weekStart(today());let hit=0;
+  for(let i=0;i<7;i++){const d=S.food[ymd(addDays(ws,i))];if(d&&d.k>=kg*.9&&d.p>=PROT*.9)hit++}
+  let h='<header class="stack"><h1>מה אכלת היום</h1><p class="muted">כדי לעלות במשקל צריך לאכול יותר ממה שהגוף שורף, כל יום. לוחצים על מה שאכלת והאפליקציה סופרת.</p></header>';
+  h+='<section class="card"><div class="stack" style="gap:4px"><div class="row between"><span>קלוריות</span><b class="num">'+f.k+' / '+kg+'</b></div><div class="bar '+(f.k>=kg?"ok":"")+'"><i style="width:'+Math.min(100,f.k/kg*100)+'%"></i></div></div>'+
+    '<div class="stack" style="gap:4px"><div class="row between"><span>חלבון (גרם)</span><b class="num">'+f.p+' / '+PROT+'</b></div><div class="bar '+(f.p>=PROT?"ok":"")+'"><i style="width:'+Math.min(100,f.p/PROT*100)+'%"></i></div></div>'+
+    '<p class="small"><b>'+(f.k>=kg&&f.p>=PROT?"יעד היום הושג.":f.k<kg?"חסרות עוד "+(kg-f.k)+" קלוריות. "+(kg-f.k>600?"ארוחה מלאה ועוד משהו קטן.":"שייק או כריך עם טחינה יסגרו את זה."):"הקלוריות בסדר, חסר עוד "+(PROT-f.p)+" גרם חלבון.")+'</b></p>'+
+    '<p class="muted small num">ימים שעמדת ביעד השבוע: '+hit+' מתוך 7</p></section>';
+  h+='<section class="card"><div class="row between"><h2>הוסף</h2>'+(f.log.length?'<button class="chip" data-act="unfood">בטל אחרון</button>':"")+'</div><div class="foods">'+
+    FOODS.map((x,i)=>{const c=f.log.filter(j=>j===i).length;return '<button class="food '+(c?"has":"")+'" data-act="food" data-i="'+i+'"><span>'+x[0]+(c?' <b class="num">×'+c+'</b>':"")+'</span><span class="muted small num">'+x[1]+' קל׳ · '+x[2]+' ג׳</span></button>'}).join("")+
+    '</div><p class="muted small">המספרים הם הערכה למנה רגילה. לא צריך דיוק, צריך עקביות.</p></section>';
+  return h;
+}
+function weightAdvice(ws){if(ws.length<2)return"";const a=ws[0],b=ws[ws.length-1],days=(parse(b.d)-parse(a.d))/864e5;if(days<13)return"";
+  const rate=(b.kg-a.kg)/days*7;
+  if(rate<.15)return'<div class="stack warn"><p><b>המשקל כמעט לא זז.</b> זה סימן שאתה אוכל פחות ממה שצריך. מעלים את היעד היומי.</p><button class="btn quiet" data-act="goalup">העלה את יעד הקלוריות ל־'+(kcalGoal()+250)+'</button></div>';
+  if(rate>.8)return'<p class="small warn">אתה עולה מהר ('+rate.toFixed(1)+' ק״ג בשבוע). אפשר להישאר על היעד הנוכחי ולא להוסיף.</p>';
+  return'<p class="small"><b>קצב טוב:</b> '+rate.toFixed(1)+' ק״ג בשבוע. ממשיכים בדיוק ככה.</p>'}
 function progressHTML(){
   const pw=progWeek(),cur=weekStart(today()),base=S.start?weekStart(parse(S.start)):cur;
   let h='<header><h1>ההתקדמות שלך</h1></header><div class="stats"><div class="stat"><b class="num">'+totalDone()+'</b><span>אימונים</span></div><div class="stat"><b class="num">'+streak()+'</b><span>שבועות ברצף</span></div><div class="stat"><b class="num">'+Math.min(pw,12)+'/12</b><span>שבוע בתוכנית</span></div></div>';
@@ -312,16 +366,20 @@ function progressHTML(){
     h+='<div class="row between"><span class="num"><b style="font-size:22px">'+l+'</b> ק״ג</span><span class="muted small num">התחלה '+f+' · יעד ראשון '+goal+'</span></div><div class="bar ok"><i style="width:'+p+'%"></i></div>';
     if(ws.length>1){const mn=Math.min(...ws.map(x=>x.kg))-.5,mx=Math.max(...ws.map(x=>x.kg))+.5,pts=ws.map((x,i)=>(8+i*(284/(ws.length-1))).toFixed(1)+","+(52-(x.kg-mn)/(mx-mn)*44).toFixed(1));
       h+='<svg viewBox="0 0 300 60" role="img" aria-label="גרף משקל" style="width:100%;height:auto"><polyline points="'+pts.join(" ")+'" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="'+pts[pts.length-1].split(",")[0]+'" cy="'+pts[pts.length-1].split(",")[1]+'" r="4" fill="var(--accent)"/></svg>'}
+    h+=weightAdvice(ws);
   }else h+='<p class="muted">עדיין אין שקילות. נשקלים פעם בשבוע, בבוקר, באותו יום. עלייה של רבע עד חצי קילו בשבוע היא קצב טוב.</p>';
   h+='<div class="row"><label for="weightInput" class="small">שקילה היום (ק״ג)</label><input id="weightInput" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="54.0"><button class="btn quiet" style="width:auto" data-act="addw">שמור</button></div></section>';
   return h;
 }
 
 function guideHTML(){return '<header><h1>איך זה עובד</h1></header>'+
-'<section class="card guide"><h2>לפני שמתחילים</h2><p class="warn">יש לך עקמת, ולכן כדאי להראות את התוכנית לרופא, לאורתופד או לפיזיותרפיסט לפני האימון הראשון. הם מכירים את העקומה שלך ויכולים להתאים תרגילים. התוכנית כאן כללית ועדינה, ואינה תחליף לייעוץ אישי.</p><ul><li>כאב חד, כאב שמקרין ליד או לרגל, או נימול: עוצרים את התרגיל.</li><li>שריר שעובד ושורף זה תקין. כאב במפרק או בגב זה לא.</li><li>עובדים על שני הצדדים באותה כמות, גם אם צד אחד מרגיש חזק יותר.</li><li>בלי משקל כבד על הכתפיים או על הגב בחודשים הראשונים.</li></ul></section>'+
+'<section class="card guide"><h2>לפני שמתחילים</h2><p class="warn">יש לך עקמת, ולכן כדאי להראות את התוכנית לרופא, לאורתופד או לפיזיותרפיסט לפני האימון הראשון. הם מכירים את העקומה שלך ויכולים להתאים תרגילים. התוכנית כאן כללית ועדינה, ואינה תחליף לייעוץ אישי.</p><ul><li>כאב חד, כאב שמקרין ליד או לרגל, או נימול: עוצרים את התרגיל.</li><li>שריר שעובד ושורף זה תקין. כאב במפרק או בגב זה לא.</li><li>עובדים על שני הצדדים באותה כמות, גם אם צד אחד מרגיש חזק יותר.</li><li>בלי משקל כבד על הכתפיים או על הגב בחודשים הראשונים.</li></ul>'+
+'<h3>מה אימון יכול לעשות לעקמת</h3><ul><li>לחזק את השרירים שמחזיקים את הגב, לשפר יציבה ולהפחית עייפות וכאב מישיבה.</li><li>הוא לא מיישר את העקומה עצמה. לזה יש טיפול ייעודי (למשל שיטת שרות) שמותאם לכיוון העקומה שלך, ורק פיזיותרפיסט יכול להתאים אותו.</li><li>קיבלת תרגילים מפיזיותרפיסט? הם קודמים לכל מה שכתוב כאן.</li></ul>'+
+'<h3>התאמה אישית</h3><ul><li>בכל תרגיל אפשר לסמן קל מדי או קשה מדי, והיעד משתנה לאימונים הבאים.</li><li>תרגיל שכואב מוחלף בתרגיל אחר ולא חוזר.</li></ul><button class="btn quiet" data-act="resetadj">אפס את כל ההתאמות</button></section>'+
 '<section class="card guide"><h2>התוכנית</h2><ul><li>שלושה אימונים בשבוע (א׳, ב׳, ג׳) שמתחלפים בסדר קבוע, כ־25 דקות כל אחד.</li><li>אימון רביעי הוא בונוס קל ליציבה ולשרירי הליבה.</li><li>יום מנוחה בין אימון לאימון. בשבת נחים.</li><li>מנוחה של כדקה בין סטים. האפליקציה סופרת בשבילך.</li><li>כשמצליחים את כל הסטים ביעד בקלות, מוסיפים חזרה או ספר לתיק.</li></ul><h3>ציוד</h3><ul><li>מזרן או שטיח</li><li>כיסא יציב או שולחן</li><li>תיק גב עם ספרים</li></ul></section>'+
 '<section class="card guide"><h2>כשאין כוח</h2><ul><li>כלל חמש הדקות: מתחילים סט אחד. מותר לעצור אחריו.</li><li>אימון מינימום (3 תרגילים) נחשב. העיקר לא לשבור את הרצף.</li><li>לא מדלגים פעמיים ברצף. דילגת אתמול? היום עושים, אפילו קצר.</li><li>קובעים שעה קבועה, למשל מיד אחרי הסדר או לפני ארוחת הערב.</li></ul></section>'+
-'<section class="card guide"><h2>אוכל ושינה</h2><p>בגובה 176 ובמשקל 54 ק״ג, האימון לבדו לא יבנה שריר. צריך לאכול יותר ממה שאתה רגיל.</p><ul><li>שלוש ארוחות ועוד שתי ארוחות ביניים בכל יום.</li><li>חלבון בכל ארוחה: ביצים, קוטג׳, טונה, עוף, קטניות, טחינה. יעד של כ־90 גרם ביום.</li><li>תוספות קלות: חמאת בוטנים, אגוזים, שמן זית, כוס חלב.</li><li>7–9 שעות שינה. השריר נבנה בלילה.</li></ul></section>'+
+'<section class="card guide"><h2>אוכל ושינה</h2><p>בגובה 176 ובמשקל 54 ק״ג, האימון לבדו לא יבנה שריר. צריך לאכול יותר ממה שאתה רגיל.</p><ul><li>שלוש ארוחות ועוד שתי ארוחות ביניים בכל יום.</li><li>חלבון בכל ארוחה: ביצים, קוטג׳, טונה, עוף, קטניות, טחינה. יעד של כ־90 גרם ביום.</li><li>תוספות קלות: חמאת בוטנים, אגוזים, שמן זית, כוס חלב.</li><li>7–9 שעות שינה. השריר נבנה בלילה.</li></ul>'+
+'<h3>יום לדוגמה (כ־2,700 קלוריות)</h3><ul><li>בוקר: 2 ביצים, 2 פרוסות לחם עם טחינה, כוס חלב.</li><li>עשר: יוגורט חלבון ובננה.</li><li>צהריים: ארוחה מלאה בחדר האוכל, עם מנה כפולה של פחמימה.</li><li>אחר הצהריים: כריך חמאת בוטנים או חופן אגוזים.</li><li>ערב: קוטג׳ או טונה, לחם, אבוקדו.</li><li>אחרי אימון: שייק חלב, בננה וחמאת בוטנים.</li></ul></section>'+
 '<section class="card guide"><h2>ישיבה ארוכה</h2><ul><li>כל 45 דקות קמים לדקה, גם באמצע סדר וגם מול המחשב.</li><li>מסך בגובה העיניים, כפות רגליים על הרצפה.</li><li>חתול־פרה ובירד־דוג אפשר לעשות גם בימי מנוחה.</li></ul></section>'}
 
 /* ============ הדמיית תלת־ממד ============ */
@@ -340,6 +398,7 @@ const ANIM={
   superman:{T:3.2,cam:[.25,3.1],mat:1,a:{root:[90,0,0],ank:80,sh:[0,0,80],el:[0,0,90]},b:{root:[90,0,0],ank:80,spine:-9,chest:-12,head:-10,sh:[0,28,80],el:[0,0,90]}},
   catcow:{T:4,cam:[.35,3.1],mat:1,ik:[.21,.05],a:{pos:[0,0,-.25],root:[89,0,0],hip:-89,kn:90,ank:80,spine:-13,chest:-13,head:-28},b:{pos:[0,0,-.25],root:[54,0,0],hip:-54,kn:90,ank:80,spine:18,chest:22,head:38}},
   inclinePush:{T:3,cam:[.5,3.5],prop:"bench",ik:[.5,.5],pin:["toeL",-.65],a:{root:[49,0,0],ank:20,head:-15},b:{root:[66,0,0],ank:20,head:-15}},
+  child:{T:5,cam:[.3,3.1],mat:1,a:{pos:[0,0,-.5],root:[78,0,0],spine:7,chest:7,head:-12,hip:-151,kn:162,ank:80,sh:-184},b:{pos:[0,0,-.5],root:[80,0,0],spine:8,chest:8,head:-12,hip:-153,kn:162,ank:80,sh:-188}},
   kneePush:{T:3,cam:[.3,3.1],mat:1,ik:[.4,.05],pin:["kneeL",-.35],a:{root:[56,0,0],kn:70,head:-15},b:{root:[80,0,0],kn:70,head:-15}},
 };
 const JOINTS=["spine","chest","head","shL","shR","elL","elR","hipL","hipR","knL","knR","ankL","ankR"];
