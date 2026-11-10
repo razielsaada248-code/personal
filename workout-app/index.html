@@ -71,6 +71,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .set.on{background:var(--ok);border-color:var(--ok);color:var(--surface)}
 .set.hold{border-color:var(--warm)}
 .sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;display:flex;flex-direction:column;gap:8px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.panel .bar{width:100%} .panel.rest{background:var(--soft)} .panel.rest .bar{background:var(--surface)} .panel.ready .big{color:var(--warm)}
+.panel .lbl{font-weight:500;color:var(--muted)} .big{font-family:var(--display);font-size:84px;line-height:1}
+.btn.huge{font-size:22px;padding:20px}
 .timer{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
 .timer .bar{background:color-mix(in srgb,var(--bg) 25%,transparent)} .timer .bar>i{background:var(--warm);transition:width 1s linear}
 .timer button{background:var(--bg);color:var(--ink);padding:4px 12px;font-size:14px}
@@ -213,6 +217,7 @@ let tab="today",view="home",sel=0,tiredOpen=false,satOverride=false,timer=null,t
 const app=document.getElementById("app");
 
 function render(){
+  document.querySelector(".tabs").hidden=false;
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===tab));
   if(tab==="today"&&view==="workout"&&ses()&&!ses().done)return renderWorkout();
   view="home";viewer.stop();
@@ -270,47 +275,66 @@ function homeHTML(){
   return h;
 }
 
+let ph=null,actx=null,wake=null;
+function beep(f,d){try{if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;o.connect(g);g.connect(actx.destination);
+  g.gain.setValueAtTime(.18,actx.currentTime);g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d);o.start();o.stop(actx.currentTime+d)}catch(e){}}
+function vib(){try{if(navigator.vibrate)navigator.vibrate(180)}catch(e){}}
+function unlock(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}
+  try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(w=>{wake=w}).catch(()=>{})}catch(e){}}
+function leave(){clearInterval(tick);ph=null;try{if(wake){wake.release();wake=null}}catch(e){}}
+function curIdx(e){return e.plan.findIndex((p,i)=>e.sets[i]<p[1]&&!(e.skip&&e.skip[i]))}
+function left(){return ph.paused!=null?ph.paused:Math.max(0,Math.ceil((ph.end-Date.now())/1000))}
+function setPhase(kind,secs,extra){ph=Object.assign({kind,total:secs||0,end:Date.now()+(secs||0)*1000,last:-1,paused:null},extra||{});
+  clearInterval(tick);renderWorkout();if(secs)tick=setInterval(onTick,200)}
+function phaseLabel(){const l=left();
+  if(ph.kind==="ready")return"תהיה מוכן";
+  if(ph.kind==="rest")return l<=3?"תהיה מוכן":"מנוחה";
+  return ph.split?(l<=ph.total/2?"צד שני":"צד ראשון"):"מחזיקים"}
+function updateBig(){const n=document.getElementById("bigNum");if(!n||!ph)return;const l=left();n.textContent=l;
+  document.getElementById("bigLabel").textContent=phaseLabel();
+  const b=document.getElementById("bigBar");if(b)b.style.width=(ph.total?100*l/ph.total:0)+"%"}
+function onTick(){if(!ph||ph.paused!=null)return;const l=left();
+  if(l!==ph.last){ph.last=l;updateBig();if(l>0&&l<=3)beep(ph.kind==="work"?520:660,.12);
+    if(ph.split&&!ph.sw&&l<=ph.total/2){ph.sw=1;beep(880,.3);vib()}}
+  if(l<=0)phaseEnd()}
+function phaseEnd(){clearInterval(tick);beep(880,.35);vib();if(ph.kind==="work")completeSet();else startWork()}
+function startWork(){const e=ses(),i=curIdx(e);if(i<0)return finishSession();const id=e.plan[i][0],u=EX[id].u;
+  if(u==="sec")setPhase("work",val(id));else if(u==="secside")setPhase("work",val(id)*2,{split:1});else setPhase("work",0)}
+function completeSet(){const e=ses(),i=curIdx(e);if(i<0)return finishSession();e.sets[i]++;save();
+  if(curIdx(e)<0)return finishSession();setPhase("rest",mode==="p"?20:e.mini?45:55)}
+function finishSession(){const e=ses();leave();
+  if(dayPct(e)>=50){e.done=true;msg=mode==="p"?"שגרת היציבה הושלמה":"אימון מספר "+totalDone()+" הושלם"}else msg="נשמר חלקית. אפשר להמשיך אחר כך.";
+  if(!sum(e.sets))delete (mode==="p"?S.post:S.days)[tkey()];save();view="home";render()}
+
 function renderWorkout(){
-  const e=ses(),tot=sum(e.plan.map(p=>p[1])),done=sum(e.sets),pct=dayPct(e);
-  if(sel>=e.plan.length)sel=0;const id=e.plan[sel][0];
-  let h='<div class="sticky"><div class="row between"><button class="chip" data-act="back">→ חזרה</button><b>'+(mode==="p"?"שגרת יציבה":WK[e.w].n)+'</b><span class="num small">'+done+'/'+tot+' סטים</span></div>'+
-    '<div class="bar"><i style="width:'+pct+'%"></i></div><div id="timerSlot"></div></div>';
-  if(mode==="w"&&!e.mus&&S.musicAsk!==false)h+='<section class="card"><div class="row between"><h3>מוזיקה לאימון?</h3><span class="muted small">נפתח בספוטיפי וממשיך לנגן ברקע</span></div>'+
-    '<a class="btn" style="text-align:center;text-decoration:none;display:block;border-radius:12px" target="_blank" rel="noopener" data-act="musyes" href="'+esc(musicUrl())+'">'+(S.music?"נגן את הפלייליסט שלי":"נגן את פלייליסט האימון")+'</a>'+
-    '<div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="musno">בלי מוזיקה</button><button class="btn quiet" style="flex:1;width:auto" data-act="musnever">אל תשאל שוב</button></div></section>';
+  const e=ses(),i=curIdx(e);if(i<0){finishSession();return}
+  document.querySelector(".tabs").hidden=true;if(!ph)ph={kind:"intro"};sel=i;
+  const id=e.plan[i][0],x=EX[id],pct=dayPct(e),k=ph.kind,timed=x.u.indexOf("sec")===0,started=sum(e.sets)>0;
+  const tot=sum(e.plan.map(p=>p[1])),mins=Math.round((tot-sum(e.sets))*1.5+1);
+  let h='<div class="stack" style="gap:6px"><div class="row between"><button class="chip" data-act="back">→ יציאה</button><b class="num small">תרגיל '+(i+1)+'/'+e.plan.length+' · סט '+(e.sets[i]+1)+'/'+e.plan[i][1]+'</b><span class="num small muted">'+pct+'%</span></div><div class="bar thin"><i style="width:'+pct+'%"></i></div></div>';
   h+='<div class="stage" id="stageSlot"></div>';
-  h+='<div class="stack" style="gap:6px"><div class="row between"><h2>'+EX[id].n+'</h2><span class="chip num">'+e.plan[sel][1]+' × '+target(id)+'</span></div><ul class="cues">'+EX[id].c.map(c=>"<li>"+c+"</li>").join("")+'</ul>'+
-    '<div class="row"><span class="small muted">איך התרגיל?</span><button class="chip" data-act="easy">קל מדי</button><button class="chip" data-act="hard">קשה מדי</button><button class="chip pain" data-act="pain">כואב לי</button></div>'+
-    (msg?'<p class="small warn">'+esc(msg)+'</p>':"")+'</div>';msg="";
-  e.plan.forEach((p,i)=>{const x=EX[p[0]],fin=e.sets[i]>=p[1];
-    h+='<div class="ex '+(i===sel?"sel ":"")+(fin?"fin":"")+'"><button class="exhead" data-act="sel" data-i="'+i+'"><span class="exname">'+(fin?"✓ ":"")+x.n+'</span><span class="muted small num">'+target(p[0])+'</span></button><div class="sets">';
-    for(let s=0;s<p[1];s++){const on=s<e.sets[i],holding=timer&&timer.kind==="hold"&&timer.i===i&&s===e.sets[i];
-      h+='<button class="set '+(on?"on":"")+(holding?" hold":"")+'" data-act="set" data-i="'+i+'" data-s="'+s+'" aria-pressed="'+on+'">'+(on?"✓ ":"")+'סט '+(s+1)+'</button>'}
-    h+='</div></div>'});
-  h+='<button class="btn ghost" data-act="finish">סיום ויציאה</button><p class="muted small">מעל חצי מהסטים נחשב לאימון שבוצע. סובבו את הדמות עם האצבע כדי לראות מכל זווית.</p>';
+  h+='<div class="row between"><h1 style="font-size:24px">'+(k==="rest"?"הבא: ":"")+x.n+'</h1><span class="chip num">'+target(id)+'</span></div>';
+  if(msg){h+='<p class="small warn">'+esc(msg)+'</p>';msg=""}
+  if(k==="intro"){
+    if(mode==="w"&&!e.mus&&S.musicAsk!==false)h+='<section class="card"><div class="row between"><h3>מוזיקה לאימון?</h3><button class="chip" data-act="musnever">אל תשאל שוב</button></div>'+
+      '<a class="btn quiet" style="text-align:center;text-decoration:none;display:block;border-radius:12px" target="_blank" rel="noopener" data-act="musyes" href="'+esc(musicUrl())+'">'+(S.music?"נגן את הפלייליסט שלי":"נגן את פלייליסט האימון")+'</a><p class="muted small">ספוטיפי נפתח ומתחיל לנגן. חוזרים לכאן והמוזיקה ממשיכה ברקע.</p></section>';
+    h+='<button class="btn huge" data-act="go">'+(started?"המשך":"התחל")+'</button><p class="muted small" style="text-align:center">'+e.plan.length+' תרגילים · כ־'+mins+' דקות. אני סופר, אתה רק עושה.</p>';
+  }else if(k==="work"&&!timed){
+    h+='<div class="panel"><span class="lbl">'+(x.u==="side"?"חזרות לכל צד":"חזרות")+'</span><span class="big num">'+val(id)+'</span></div><button class="btn huge" data-act="done">סיימתי</button>';
+  }else{
+    h+='<div class="panel '+k+'"><span class="lbl" id="bigLabel">'+phaseLabel()+'</span><span class="big num" id="bigNum">'+left()+'</span><div class="bar"><i id="bigBar" style="width:'+(ph.total?100*left()/ph.total:0)+'%"></i></div></div>';
+    if(k==="rest")h+='<div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="more">+15 שניות</button><button class="btn" style="flex:1;width:auto" data-act="skiprest">דלג על המנוחה</button></div>';
+    else if(k==="work")h+='<div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="pause">'+(ph.paused!=null?"המשך":"השהה")+'</button><button class="btn quiet" style="flex:1;width:auto" data-act="done">סיימתי מוקדם</button></div>';
+  }
+  h+='<ul class="cues">'+x.c.map(c=>"<li>"+c+"</li>").join("")+'</ul>';
+  h+='<div class="row"><span class="small muted">התרגיל הזה:</span><button class="chip" data-act="easy">קל מדי</button><button class="chip" data-act="hard">קשה מדי</button><button class="chip pain" data-act="pain">כואב לי</button><button class="chip" data-act="skipex">דלג עליו</button></div>';
+  if(k==="intro"||k==="rest")h+='<button class="btn ghost" data-act="finish">סיים את האימון עכשיו</button>';
   app.innerHTML=h;
   viewer.mount(document.getElementById("stageSlot"),id);
-  drawTimer();
 }
-
-function drawTimer(){const slot=document.getElementById("timerSlot");if(!slot)return;
-  if(!timer){slot.innerHTML="";return}
-  const label=timer.kind==="rest"?"מנוחה":(timer.split&&timer.left<=timer.total/2?"צד שני":"מחזיקים");
-  slot.innerHTML='<div class="timer" role="timer"><div class="row between"><span>'+label+'</span><span class="big num">'+timer.left+'</span><button data-act="skip">'+(timer.kind==="rest"?"דלג":"סיימתי")+'</button></div><div class="bar thin"><i style="width:'+(100*timer.left/timer.total)+'%"></i></div></div>';
-}
-function startTimer(kind,secs,i,split){clearInterval(tick);timer={kind,left:secs,total:secs,i,split};
-  tick=setInterval(()=>{timer.left--;if(timer.left<=0){endTimer(true)}else drawTimer()},1000)}
-function endTimer(natural){clearInterval(tick);const t=timer;timer=null;
-  try{if(natural&&navigator.vibrate)navigator.vibrate(200)}catch(e){}
-  if(t&&t.kind==="hold")markSet(t.i);else if(view==="workout")drawTimer()}
-function markSet(i){const e=ses();if(!e)return;e.sets[i]=Math.min(e.plan[i][1],e.sets[i]+1);
-  const all=e.plan.every((p,j)=>e.sets[j]>=p[1]);
-  if(all){e.done=true;clearInterval(tick);timer=null;save();view="home";msg=mode==="p"?"שגרת היציבה הושלמה":"אימון מספר "+totalDone()+" הושלם";render();return}
-  if(e.sets[i]>=e.plan[i][1]){const nx=e.plan.findIndex((p,j)=>e.sets[j]<p[1]);if(nx>=0)sel=nx}
-  save();startTimer("rest",i===sel?60:45,i);renderWorkout()}
 
 function startDay(mini){const w=nextW(),plan=buildPlan(w,mini);if(!S.start)S.start=tkey();
-  S.days[tkey()]={w,mini:!!mini,plan,sets:plan.map(()=>0),done:false};mode="w";save();sel=0;view="workout";tiredOpen=false;render();scrollTo(0,0)}
+  S.days[tkey()]={w,mini:!!mini,plan,sets:plan.map(()=>0),done:false};mode="w";ph=null;save();sel=0;view="workout";tiredOpen=false;render();scrollTo(0,0)}
 
 document.addEventListener("click",ev=>{
   const tb=ev.target.closest("[data-tab]");if(tb){tab=tb.dataset.tab;view="home";render();scrollTo(0,0);return}
@@ -319,36 +343,31 @@ document.addEventListener("click",ev=>{
   else if(a==="mini")startDay(true);
   else if(a==="tired"){tiredOpen=true;render()}
   else if(a==="sat"){satOverride=true;render()}
-  else if(a==="resume"){mode="w";view="workout";render();scrollTo(0,0)}
-  else if(a==="pstart"||a==="presume"){mode="p";if(!S.post[tkey()]){const plan=mapEx(POSTURE).map(id=>[id,1]);S.post[tkey()]={plan,sets:plan.map(()=>0),done:false};save()}sel=0;view="workout";render();scrollTo(0,0)}
+  else if(a==="resume"){mode="w";ph=null;view="workout";render();scrollTo(0,0)}
+  else if(a==="pstart"||a==="presume"){mode="p";ph=null;if(!S.post[tkey()]){const plan=mapEx(POSTURE).map(id=>[id,1]);S.post[tkey()]={plan,sets:plan.map(()=>0),done:false};save()}sel=0;view="workout";render();scrollTo(0,0)}
   else if(a==="easy"||a==="hard"){const id=e.plan[sel][0];S.adj[id]=Math.max(-2,Math.min(3,(S.adj[id]||0)+(a==="easy"?1:-1)));save();msg="היעד עודכן ל־"+target(id)+". ההתאמה נשמרת לאימונים הבאים.";renderWorkout()}
   else if(a==="pain"){const id=e.plan[sel][0],alt=ALT[id];S.swap[id]=alt;if(S.swap[alt]===id)delete S.swap[alt];
-    if(e.plan.some(p=>p[0]===alt)&&e.plan.length>1){e.plan.splice(sel,1);e.sets.splice(sel,1);sel=0}else{e.plan[sel][0]=alt;e.sets[sel]=0}
-    clearInterval(tick);timer=null;save();msg=EX[id].n+" הוחלף ב"+EX[alt].n+". כאב שחוזר שווה לספר עליו לרופא או לפיזיותרפיסט.";renderWorkout()}
+    if(e.plan.some(p=>p[0]===alt)&&e.plan.length>1){e.plan.splice(sel,1);e.sets.splice(sel,1);e.skip=null;sel=0}else{e.plan[sel][0]=alt;e.sets[sel]=0}
+    save();msg=EX[id].n+" הוחלף ב"+EX[alt].n+". כאב שחוזר שווה לספר עליו לרופא או לפיזיותרפיסט.";setPhase("ready",5)}
   else if(a==="food"){const f=FOODS[+b.dataset.i],d=S.food[tkey()]||(S.food[tkey()]={k:0,p:0,log:[]});d.k+=f[1];d.p+=f[2];d.log.push(+b.dataset.i);save();render()}
   else if(a==="unfood"){const d=S.food[tkey()];if(d&&d.log.length){const f=FOODS[d.log.pop()];d.k-=f[1];d.p-=f[2];save();render()}}
   else if(a==="goalup"){S.goalK=kcalGoal()+250;save();render()}
   else if(a==="bar"){S.bar=S.bar===false;save();render()}
-  else if(a==="musyes"){e.mus=1;save();setTimeout(renderWorkout,400)}
-  else if(a==="musno"){e.mus=1;save();renderWorkout()}
+  else if(a==="musyes"){e.mus=1;save();setTimeout(()=>{if(ph&&ph.kind==="intro")renderWorkout()},600)}
   else if(a==="musnever"){e.mus=1;S.musicAsk=false;save();renderWorkout()}
   else if(a==="musask"){S.musicAsk=S.musicAsk===false;save();render()}
   else if(a==="setmusic"){const v=document.getElementById("musicInput").value.trim();
     if(!v){delete S.music;msg="חזרנו לפלייליסט האימון הרגיל"}else if(/^https:\/\/open\.spotify\.com\//.test(v)){S.music=v;msg="הפלייליסט נשמר"}else{msg="זה לא קישור של ספוטיפי. מעתיקים אותו מהאפליקציה: שיתוף, העתקת קישור."}
     save();tab="today";render()}
   else if(a==="resetadj"){S.adj={};S.swap={};save();msg="ההתאמות אופסו";tab="today";render()}
-  else if(a==="back"){view="home";render()}
-  else if(a==="sel"){sel=+b.dataset.i;renderWorkout()}
-  else if(a==="skip"){endTimer(false)}
-  else if(a==="set"){const i=+b.dataset.i,s=+b.dataset.s;sel=i;
-    if(s<e.sets[i]){e.sets[i]=s;save();renderWorkout();return}
-    if(s>e.sets[i]){renderWorkout();return}
-    const pid=e.plan[i][0],x=EX[pid],isHold=x.u==="sec"||x.u==="secside";
-    if(isHold&&!(timer&&timer.kind==="hold"&&timer.i===i)){const v=val(pid);startTimer("hold",x.u==="secside"?v*2:v,i,x.u==="secside");renderWorkout();return}
-    if(timer&&timer.kind==="hold"){clearInterval(tick);timer=null}
-    markSet(i)}
-  else if(a==="finish"){clearInterval(tick);timer=null;if(dayPct(e)>=50){e.done=true;msg=mode==="p"?"שגרת היציבה נרשמה":"אימון מספר "+(totalDone())+" נרשם"}else msg="נשמר חלקית. אפשר להמשיך אחר כך.";
-    if(!sum(e.sets))delete (mode==="p"?S.post:S.days)[tkey()];save();view="home";render()}
+  else if(a==="back"){leave();view="home";render()}
+  else if(a==="go"){unlock();if(e)e.mus=1;setPhase("ready",5)}
+  else if(a==="done"){beep(880,.2);completeSet()}
+  else if(a==="skiprest"){phaseEnd()}
+  else if(a==="more"){ph.end+=15000;ph.total+=15;updateBig()}
+  else if(a==="pause"){if(ph.paused==null)ph.paused=left();else{ph.end=Date.now()+ph.paused*1000;ph.paused=null}renderWorkout()}
+  else if(a==="skipex"){e.skip=e.skip||{};e.skip[curIdx(e)]=true;save();if(curIdx(e)<0)finishSession();else setPhase("ready",5)}
+  else if(a==="finish"){finishSession()}
   else if(a==="addw"){const inp=document.getElementById("weightInput"),kg=parseFloat(inp.value);
     if(kg>30&&kg<200){S.weights=S.weights.filter(x=>x.d!==tkey());S.weights.push({d:tkey(),kg:Math.round(kg*10)/10});save();render()}}
 });
@@ -533,7 +552,7 @@ const viewer=(function(){
     window.addEventListener("resize",()=>{size();if(!playing&&cur)frame(pausedAt)});
     ok=true;
   }
-  function size(){if(!ok||!el.parentNode)return;const w=el.parentNode.clientWidth||320,h=270;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+  function size(){if(!ok||!el.parentNode)return;const w=el.parentNode.clientWidth||320,h=Math.round(Math.max(220,Math.min(400,window.innerHeight*.38)));renderer.domElement.style.height=h+"px";renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
   const box=T?new T.Box3():null,v=T?new T.Vector3():null;
   function apply(A,B,p,a){
     const L=(x,y)=>x+(y-x)*p;
