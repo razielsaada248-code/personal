@@ -74,6 +74,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;align-items:center;gap:6px}
 .panel .bar{width:100%} .panel.rest{background:var(--soft)} .panel.rest .bar{background:var(--surface)} .panel.ready .big{color:var(--warm)}
 .panel .lbl{font-weight:500;color:var(--muted)} .big{font-family:var(--display);font-size:84px;line-height:1}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px}.dot.p{background:#E5343A}.dot.s{background:#F5A83B}
+@keyframes fl{0%,35%{background:var(--warm)}100%{background:var(--bg)}} body.flash{animation:fl .9s ease-out}
+@media (prefers-reduced-motion: reduce){body.flash{animation:none}}
 .btn.huge{font-size:22px;padding:20px}
 .timer{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
 .timer .bar{background:color-mix(in srgb,var(--bg) 25%,transparent)} .timer .bar>i{background:var(--warm);transition:width 1s linear}
@@ -145,9 +148,20 @@ EX.child={n:"תנוחת ילד",u:"sec",r:[30,40,45],c:["יושבים על הע�
 EX.hang={n:"תלייה על מתח",u:"sec",r:[15,20,30],c:["אוחזים במתח ברוחב הכתפיים ונותנים לגוף להיתלות","כתפיים רחוקות מהאוזניים, בטן מעט אסופה","נושמים עמוק ויורדים בשליטה, בלי לקפוץ"]};
 EX.scapPull={n:"משיכת שכמות בתלייה",u:"reps",r:[5,6,8],c:["תלויים בידיים ישרות","מושכים את השכמות למטה ואחורה בלי לכופף מרפקים","הגוף עולה סנטימטרים בודדים. שנייה למעלה ומשחררים"]};
 EX.negPull={n:"מתח שלילי",u:"reps",r:[3,4,5],c:["עולים בעזרת כיסא עד שהסנטר מעל המוט","יורדים לאט ככל האפשר, 3 עד 5 שניות","בסוף הירידה ידיים ישרות, ואז עולים שוב מהכיסא"]};
+EX.cobra={n:"מתיחת קוברה",u:"sec",r:[20,25,30],c:["שוכבים על הבטן, כפות ידיים ליד החזה","מרימים חזה בעדינות, האגן נשאר על הרצפה","רק עד איפה שנעים, בלי כאב בגב התחתון"]};
+EX.hipStretch={n:"מתיחת מפשעה וירך",u:"secside",r:[20,25,30],c:["ברך אחורית על המזרן, רגל קדמית כפופה","דוחפים את האגן קדימה עד שמרגישים מתיחה בקדמת הירך","גו זקוף, נשימות איטיות"]};
+EX.lunge.sides=2;EX.sidePlank.sides=1;EX.hipStretch.sides=1;
+const COOL=["hipStretch","cobra","child"];
+const REST={squat:50,lunge:45,inclinePush:50,kneePush:50,row:45,negPull:60,scapPull:30,hang:30,bridge:30,birddog:20,deadbug:20,plank:30,sidePlank:20,superman:25,catcow:10,calf:20,child:6,cobra:6,hipStretch:6};
+const MN={quads:"ירך קדמית",hams:"ירך אחורית",glutes:"ישבן",calves:"שוקיים",abs:"בטן",obl:"אלכסונים",lowback:"גב תחתון",chest:"חזה",lats:"גב רחב",upper:"גב עליון ושכמות",delts:"כתפיים",biceps:"יד קדמית",triceps:"יד אחורית",forearms:"אמות ואחיזה"};
+const MUS={squat:[["quads","glutes"],["hams","abs"]],lunge:[["quads","glutes"],["hams","calves"]],calf:[["calves"],[]],inclinePush:[["chest","triceps"],["delts","abs"]],kneePush:[["chest","triceps"],["delts","abs"]],
+  row:[["lats","upper"],["biceps","lowback"]],negPull:[["lats","biceps"],["upper","forearms"]],scapPull:[["upper","lats"],["forearms"]],hang:[["forearms"],["lats","delts"]],
+  bridge:[["glutes","hams"],["lowback"]],birddog:[["lowback","glutes"],["abs","delts"]],plank:[["abs"],["obl","delts"]],sidePlank:[["obl"],["abs","delts","glutes"]],deadbug:[["abs"],["obl"]],
+  superman:[["lowback","upper"],["glutes"]],catcow:[["lowback","abs"],[]],child:[["lowback","lats"],[]],cobra:[["abs"],["chest"]],hipStretch:[["quads"],["glutes"]]};
+const STRETCH={child:1,cobra:1,hipStretch:1,catcow:1};
 const NOBAR={negPull:"row",scapPull:"superman",hang:"child"};
 const POSTURE=["catcow","birddog","superman","sidePlank","child"];
-const ALT={squat:"bridge",lunge:"squat",inclinePush:"kneePush",kneePush:"inclinePush",row:"superman",bridge:"deadbug",birddog:"deadbug",plank:"deadbug",superman:"birddog",deadbug:"birddog",sidePlank:"birddog",catcow:"child",calf:"bridge",child:"catcow",hang:"child",scapPull:"row",negPull:"row"};
+const ALT={squat:"bridge",lunge:"squat",inclinePush:"kneePush",kneePush:"inclinePush",row:"superman",bridge:"deadbug",birddog:"deadbug",plank:"deadbug",superman:"birddog",deadbug:"birddog",sidePlank:"birddog",catcow:"child",calf:"bridge",child:"catcow",cobra:"child",hipStretch:"child",hang:"child",scapPull:"row",negPull:"row"};
 const FOODS=[["ארוחה בחדר האוכל",700,35],["מנת עוף או בשר",300,35],["קופסת טונה",160,25],["2 ביצים",150,12],["חצי גביע קוטג׳",120,14],["יוגורט חלבון",150,20],["כוס חלב",150,8],["2 פרוסות גבינה צהובה",150,11],["צלחת אורז או פסטה",300,7],["2 פרוסות לחם",160,7],["מנת חומוס או קטניות",250,12],["2 כפות טחינה",180,5],["כף חמאת בוטנים",100,4],["חופן אגוזים",180,5],["בננה",100,1],["שייק חלב, בננה וחמאת בוטנים",450,20],["חצי אבוקדו",160,2],["ארוחה אחרת",500,20]];
 const PROT=95;
 const MUSIC_DEFAULT="https://open.spotify.com/playlist/5IkMBZ3IX5JqY0lntZscBI?utm_source=anthropic&utm_medium=claude&go=1&nap_web=1&request_id=e9a78a99-ba59-4211-9822-0abed2b4fe5e";
@@ -204,10 +218,12 @@ function foodDay(){return S.food[tkey()]||{k:0,p:0,log:[]}}
 function foodPct(){const f=foodDay();return Math.round(50*Math.min(1,f.k/kcalGoal())+50*Math.min(1,f.p/PROT))}
 let mode="w";
 function ses(){return mode==="p"?S.post[tkey()]:S.days[tkey()]}
+function restFor(e,id){const r=REST[id]||30;return mode==="p"?Math.min(r,15):e.mini?Math.min(r,35):r}
 function target(id){const e=EX[id],v=val(id);
   return e.u==="reps"?v+" חזרות":e.u==="side"?v+" לכל צד":e.u==="sec"?v+" שניות":v+" שנ׳ לכל צד"}
 function buildPlan(w,mini){const sets=(w==="D"||progWeek()<=2)?2:3;let ex=mapEx(WK[w].ex);
-  if(mini)return ex.slice(0,3).map(id=>[id,Math.min(2,sets)]);return ex.map(id=>[id,sets])}
+  const plan=(mini?ex.slice(0,3):ex).map(id=>[id,mini?Math.min(2,sets):sets]);
+  if(w!=="D")mapEx(mini?["child"]:COOL).forEach(id=>{if(!plan.some(p=>p[0]===id))plan.push([id,1])});return plan}
 const sum=a=>a.reduce((x,y)=>x+y,0);
 function dayPct(e){if(!e)return 0;const t=sum(e.plan.map(p=>p[1]));return t?Math.round(100*sum(e.sets)/t):0}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -255,7 +271,8 @@ function homeHTML(){
   h+='<section class="card"><div class="row between"><h2>'+WK[w].n+(e&&e.mini?" (מינימום)":"")+'</h2><span class="muted small num">'+plan.length+' תרגילים · כ־'+mins+' דק׳</span></div>';
   h+='<div class="stack" style="gap:6px"><div class="row between small"><span>התקדמות היום</span><b class="num">'+pct+'%</b></div><div class="bar '+(e&&e.done?"ok":"")+'"><i style="width:'+pct+'%"></i></div></div>';
   h+='<p class="muted small">'+plan.map(p=>EX[p[0]].n).join(" · ")+'</p>';
-  if(e&&e.done){h+='<p><b>'+(wc>=3?"יעד השבוע הושג.":"עוד "+(3-wc)+" השבוע.")+'</b> לשתות, לאכול ארוחה עם חלבון, ולישון טוב.</p>'}
+  if(e&&e.done){h+='<p><b>'+(wc>=3?"יעד השבוע הושג.":"עוד "+(3-wc)+" השבוע.")+'</b> לשתות, לאכול ארוחה עם חלבון, ולישון טוב.</p>';
+    if(!e.rate)h+='<div class="stack warn"><p><b>איך היה האימון?</b> לפי התשובה אני מכוון את האימון הבא. שתי החזרות האחרונות בכל סט צריכות להיות קשות.</p><div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="rate" data-v="easy">קל מדי</button><button class="btn quiet" style="flex:1;width:auto" data-act="rate" data-v="ok">בדיוק</button><button class="btn quiet" style="flex:1;width:auto" data-act="rate" data-v="hard">קשה מדי</button></div></div>'}
   else if(sat){h+='<button class="btn quiet" data-act="sat">מוצאי שבת? להתאמן בכל זאת</button>'}
   else if(e){h+='<button class="btn" data-act="resume">המשך אימון</button>'}
   else{
@@ -276,9 +293,14 @@ function homeHTML(){
 }
 
 let ph=null,actx=null,wake=null;
-function beep(f,d){try{if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;o.connect(g);g.connect(actx.destination);
-  g.gain.setValueAtTime(.18,actx.currentTime);g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d);o.start();o.stop(actx.currentTime+d)}catch(e){}}
-function vib(){try{if(navigator.vibrate)navigator.vibrate(180)}catch(e){}}
+function tone(f,d,at,vol){try{if(!actx)return;const t=actx.currentTime+(at||0),o=actx.createOscillator(),g=actx.createGain();o.type="square";o.frequency.value=f;o.connect(g);g.connect(actx.destination);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.55,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.start(t);o.stop(t+d+.03)}catch(e){}}
+function vib(p){try{if(navigator.vibrate)navigator.vibrate(p||200)}catch(e){}}
+function flash(){try{document.body.classList.remove("flash");void document.body.offsetWidth;document.body.classList.add("flash")}catch(e){}}
+const SND={tick(){tone(880,.16)},
+  go(){tone(1320,.6,0,.7);vib([450]);flash()},
+  done(){tone(784,.16);tone(988,.16,.17);tone(1319,.4,.34,.7);vib([150,80,150,80,350]);flash()},
+  sw(){tone(988,.22);tone(988,.22,.3);vib([220,100,220]);flash()}};
 function unlock(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}
   try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(w=>{wake=w}).catch(()=>{})}catch(e){}}
 function leave(){clearInterval(tick);ph=null;try{if(wake){wake.release();wake=null}}catch(e){}}
@@ -288,20 +310,21 @@ function setPhase(kind,secs,extra){ph=Object.assign({kind,total:secs||0,end:Date
   clearInterval(tick);renderWorkout();if(secs)tick=setInterval(onTick,200)}
 function phaseLabel(){const l=left();
   if(ph.kind==="ready")return"תהיה מוכן";
-  if(ph.kind==="rest")return l<=3?"תהיה מוכן":"מנוחה";
-  return ph.split?(l<=ph.total/2?"צד שני":"צד ראשון"):"מחזיקים"}
+  if(ph.kind==="rest")return l<=5?"תהיה מוכן":"מנוחה";
+  return"מחזיקים"}
 function updateBig(){const n=document.getElementById("bigNum");if(!n||!ph)return;const l=left();n.textContent=l;
   document.getElementById("bigLabel").textContent=phaseLabel();
   const b=document.getElementById("bigBar");if(b)b.style.width=(ph.total?100*l/ph.total:0)+"%"}
 function onTick(){if(!ph||ph.paused!=null)return;const l=left();
-  if(l!==ph.last){ph.last=l;updateBig();if(l>0&&l<=3)beep(ph.kind==="work"?520:660,.12);
-    if(ph.split&&!ph.sw&&l<=ph.total/2){ph.sw=1;beep(880,.3);vib()}}
+  if(l!==ph.last){ph.last=l;updateBig();if(l>0&&l<=3)SND.tick()}
   if(l<=0)phaseEnd()}
-function phaseEnd(){clearInterval(tick);beep(880,.35);vib();if(ph.kind==="work")completeSet();else startWork()}
-function startWork(){const e=ses(),i=curIdx(e);if(i<0)return finishSession();const id=e.plan[i][0],u=EX[id].u;
-  if(u==="sec")setPhase("work",val(id));else if(u==="secside")setPhase("work",val(id)*2,{split:1});else setPhase("work",0)}
-function completeSet(){const e=ses(),i=curIdx(e);if(i<0)return finishSession();e.sets[i]++;save();
-  if(curIdx(e)<0)return finishSession();setPhase("rest",mode==="p"?20:e.mini?45:55)}
+function phaseEnd(){clearInterval(tick);if(ph.kind==="work")completeSet();else{SND.go();startWork()}}
+function startWork(){const e=ses(),i=curIdx(e);if(i<0)return finishSession();const id=e.plan[i][0];
+  setPhase("work",EX[id].u.indexOf("sec")===0?val(id):0)}
+function completeSet(){const e=ses(),i=curIdx(e);if(i<0)return finishSession();const id=e.plan[i][0];
+  if(EX[id].sides&&!e.half){e.half=1;save();SND.sw();return setPhase("ready",5)}
+  e.half=0;e.sets[i]++;save();SND.done();
+  if(curIdx(e)<0)return finishSession();setPhase("rest",restFor(e,id))}
 function finishSession(){const e=ses();leave();
   if(dayPct(e)>=50){e.done=true;msg=mode==="p"?"שגרת היציבה הושלמה":"אימון מספר "+totalDone()+" הושלם"}else msg="נשמר חלקית. אפשר להמשיך אחר כך.";
   if(!sum(e.sets))delete (mode==="p"?S.post:S.days)[tkey()];save();view="home";render()}
@@ -310,27 +333,31 @@ function renderWorkout(){
   const e=ses(),i=curIdx(e);if(i<0){finishSession();return}
   document.querySelector(".tabs").hidden=true;if(!ph)ph={kind:"intro"};sel=i;
   const id=e.plan[i][0],x=EX[id],pct=dayPct(e),k=ph.kind,timed=x.u.indexOf("sec")===0,started=sum(e.sets)>0;
+  const sideTxt=x.sides?(e.half?"צד שמאל":"צד ימין"):"",mir=x.sides?(e.half?x.sides===1:x.sides===2):false,mu=MUS[id]||[[],[]];
+  const hasBar=mode==="w"&&S.bar!==false&&e.plan.some((p,j)=>NOBAR[p[0]]&&e.sets[j]===0);
   const tot=sum(e.plan.map(p=>p[1])),mins=Math.round((tot-sum(e.sets))*1.5+1);
   let h='<div class="stack" style="gap:6px"><div class="row between"><button class="chip" data-act="back">→ יציאה</button><b class="num small">תרגיל '+(i+1)+'/'+e.plan.length+' · סט '+(e.sets[i]+1)+'/'+e.plan[i][1]+'</b><span class="num small muted">'+pct+'%</span></div><div class="bar thin"><i style="width:'+pct+'%"></i></div></div>';
   h+='<div class="stage" id="stageSlot"></div>';
-  h+='<div class="row between"><h1 style="font-size:24px">'+(k==="rest"?"הבא: ":"")+x.n+'</h1><span class="chip num">'+target(id)+'</span></div>';
+  h+='<div class="row between"><h1 style="font-size:24px">'+(k==="rest"?"הבא: ":"")+x.n+(sideTxt?' <span style="color:var(--accent)">· '+sideTxt+'</span>':"")+'</h1><span class="chip num">'+target(id)+'</span></div>';
+  h+='<p class="small"><span class="dot p"></span><b>'+(STRETCH[id]?"נמתח: ":"עובד על: ")+'</b>'+mu[0].map(m=>MN[m]).join(", ")+(mu[1].length?' &nbsp;<span class="dot s"></span><span class="muted">מסייעים: '+mu[1].map(m=>MN[m]).join(", ")+'</span>':"")+'</p>';
   if(msg){h+='<p class="small warn">'+esc(msg)+'</p>';msg=""}
   if(k==="intro"){
     if(mode==="w"&&!e.mus&&S.musicAsk!==false)h+='<section class="card"><div class="row between"><h3>מוזיקה לאימון?</h3><button class="chip" data-act="musnever">אל תשאל שוב</button></div>'+
       '<a class="btn quiet" style="text-align:center;text-decoration:none;display:block;border-radius:12px" target="_blank" rel="noopener" data-act="musyes" href="'+esc(musicUrl())+'">'+(S.music?"נגן את הפלייליסט שלי":"נגן את פלייליסט האימון")+'</a><p class="muted small">ספוטיפי נפתח ומתחיל לנגן. חוזרים לכאן והמוזיקה ממשיכה ברקע.</p></section>';
+    if(hasBar)h+='<button class="btn quiet" data-act="nobar">אין לי מתח היום. החלף לתרגילים בחדר</button>';
     h+='<button class="btn huge" data-act="go">'+(started?"המשך":"התחל")+'</button><p class="muted small" style="text-align:center">'+e.plan.length+' תרגילים · כ־'+mins+' דקות. אני סופר, אתה רק עושה.</p>';
   }else if(k==="work"&&!timed){
-    h+='<div class="panel"><span class="lbl">'+(x.u==="side"?"חזרות לכל צד":"חזרות")+'</span><span class="big num">'+val(id)+'</span></div><button class="btn huge" data-act="done">סיימתי</button>';
+    h+='<div class="panel"><span class="lbl">'+(sideTxt?"חזרות · "+sideTxt:x.u==="side"?"חזרות לכל צד, לסירוגין":"חזרות")+'</span><span class="big num">'+val(id)+'</span></div><button class="btn huge" data-act="done">סיימתי</button>';
   }else{
     h+='<div class="panel '+k+'"><span class="lbl" id="bigLabel">'+phaseLabel()+'</span><span class="big num" id="bigNum">'+left()+'</span><div class="bar"><i id="bigBar" style="width:'+(ph.total?100*left()/ph.total:0)+'%"></i></div></div>';
-    if(k==="rest")h+='<div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="more">+15 שניות</button><button class="btn" style="flex:1;width:auto" data-act="skiprest">דלג על המנוחה</button></div>';
+    if(k==="rest")h+='<div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="more">+15 שניות</button><button class="btn" style="flex:1;width:auto" data-act="skiprest">דלג · 5 שניות להתארגן</button></div>';
     else if(k==="work")h+='<div class="row"><button class="btn quiet" style="flex:1;width:auto" data-act="pause">'+(ph.paused!=null?"המשך":"השהה")+'</button><button class="btn quiet" style="flex:1;width:auto" data-act="done">סיימתי מוקדם</button></div>';
   }
   h+='<ul class="cues">'+x.c.map(c=>"<li>"+c+"</li>").join("")+'</ul>';
   h+='<div class="row"><span class="small muted">התרגיל הזה:</span><button class="chip" data-act="easy">קל מדי</button><button class="chip" data-act="hard">קשה מדי</button><button class="chip pain" data-act="pain">כואב לי</button><button class="chip" data-act="skipex">דלג עליו</button></div>';
   if(k==="intro"||k==="rest")h+='<button class="btn ghost" data-act="finish">סיים את האימון עכשיו</button>';
   app.innerHTML=h;
-  viewer.mount(document.getElementById("stageSlot"),id);
+  viewer.mount(document.getElementById("stageSlot"),id,mir);
 }
 
 function startDay(mini){const w=nextW(),plan=buildPlan(w,mini);if(!S.start)S.start=tkey();
@@ -348,6 +375,7 @@ document.addEventListener("click",ev=>{
   else if(a==="easy"||a==="hard"){const id=e.plan[sel][0];S.adj[id]=Math.max(-2,Math.min(3,(S.adj[id]||0)+(a==="easy"?1:-1)));save();msg="היעד עודכן ל־"+target(id)+". ההתאמה נשמרת לאימונים הבאים.";renderWorkout()}
   else if(a==="pain"){const id=e.plan[sel][0],alt=ALT[id];S.swap[id]=alt;if(S.swap[alt]===id)delete S.swap[alt];
     if(e.plan.some(p=>p[0]===alt)&&e.plan.length>1){e.plan.splice(sel,1);e.sets.splice(sel,1);e.skip=null;sel=0}else{e.plan[sel][0]=alt;e.sets[sel]=0}
+    e.half=0;
     save();msg=EX[id].n+" הוחלף ב"+EX[alt].n+". כאב שחוזר שווה לספר עליו לרופא או לפיזיותרפיסט.";setPhase("ready",5)}
   else if(a==="food"){const f=FOODS[+b.dataset.i],d=S.food[tkey()]||(S.food[tkey()]={k:0,p:0,log:[]});d.k+=f[1];d.p+=f[2];d.log.push(+b.dataset.i);save();render()}
   else if(a==="unfood"){const d=S.food[tkey()];if(d&&d.log.length){const f=FOODS[d.log.pop()];d.k-=f[1];d.p-=f[2];save();render()}}
@@ -362,11 +390,15 @@ document.addEventListener("click",ev=>{
   else if(a==="resetadj"){S.adj={};S.swap={};save();msg="ההתאמות אופסו";tab="today";render()}
   else if(a==="back"){leave();view="home";render()}
   else if(a==="go"){unlock();if(e)e.mus=1;setPhase("ready",5)}
-  else if(a==="done"){beep(880,.2);completeSet()}
-  else if(a==="skiprest"){phaseEnd()}
+  else if(a==="done"){completeSet()}
+  else if(a==="skiprest"){if(left()>5){ph.end=Date.now()+5000;ph.last=-1;updateBig()}}
+  else if(a==="nobar"){const out=[],st=[];e.plan.forEach((p,j)=>{const id=e.sets[j]===0&&NOBAR[p[0]]?NOBAR[p[0]]:p[0];if(!out.some(q=>q[0]===id)){out.push([id,p[1]]);st.push(e.sets[j])}});
+    e.plan=out;e.sets=st;e.skip=null;e.half=0;save();msg="תרגילי המתח הוחלפו לאימון הזה בלבד.";renderWorkout()}
+  else if(a==="rate"){const d=S.days[tkey()],v=b.dataset.v;if(d){d.rate=v;if(v!=="ok")d.plan.forEach(p=>{if(!STRETCH[p[0]])S.adj[p[0]]=Math.max(-2,Math.min(3,(S.adj[p[0]]||0)+(v==="easy"?1:-1)))});
+    msg=v==="easy"?"מעולה. באימון הבא היעדים עולים.":v==="hard"?"בסדר גמור. באימון הבא היעדים יורדים מעט.":"מצוין, ממשיכים באותה רמה.";save();render()}}
   else if(a==="more"){ph.end+=15000;ph.total+=15;updateBig()}
   else if(a==="pause"){if(ph.paused==null)ph.paused=left();else{ph.end=Date.now()+ph.paused*1000;ph.paused=null}renderWorkout()}
-  else if(a==="skipex"){e.skip=e.skip||{};e.skip[curIdx(e)]=true;save();if(curIdx(e)<0)finishSession();else setPhase("ready",5)}
+  else if(a==="skipex"){e.half=0;e.skip=e.skip||{};e.skip[curIdx(e)]=true;save();if(curIdx(e)<0)finishSession();else setPhase("ready",5)}
   else if(a==="finish"){finishSession()}
   else if(a==="addw"){const inp=document.getElementById("weightInput"),kg=parseFloat(inp.value);
     if(kg>30&&kg<200){S.weights=S.weights.filter(x=>x.d!==tkey());S.weights.push({d:tkey(),kg:Math.round(kg*10)/10});save();render()}}
@@ -445,6 +477,8 @@ const ANIM={
   hang:{T:4,cam:[1.22,4.7],bar:2.2,a:{sh:-178,kn:8},b:{sh:-178,kn:11,spine:2}},
   scapPull:{T:2.8,cam:[1.22,4.7],bar:2.2,a:{sh:-179,kn:8},b:{sh:-170,el:-16,chest:-7,head:-8,kn:8}},
   negPull:{T:5.5,cam:[1.22,4.7],bar:2.2,a:{sh:-178,kn:25},b:{sh:-28,el:-150,kn:25,chest:-5,head:-10}},
+  cobra:{T:5,cam:[.3,3.1],mat:1,ik:[.27,.05],a:{pos:[0,0,-.2],root:[90,0,0],ank:80,spine:-17,chest:-17,head:-12},b:{pos:[0,0,-.2],root:[90,0,0],ank:80,spine:-20,chest:-19,head:-14}},
+  hipStretch:{T:5,cam:[.6,3.4],mat:1,pin:["toeL",.4],a:{spine:-3,hipL:-80,knL:95,ankL:-15,hipR:22,knR:78,ankR:70,sh:-4,el:-12},b:{spine:-5,hipL:-84,knL:102,ankL:-18,hipR:27,knR:73,ankR:70,sh:-4,el:-12}},
   kneePush:{T:3,cam:[.3,3.1],mat:1,ik:[.4,.05],pin:["kneeL",-.35],a:{root:[56,0,0],kn:70,head:-15},b:{root:[80,0,0],kn:70,head:-15}},
 };
 const JOINTS=["spine","chest","head","shL","shR","elL","elR","hipL","hipR","knL","knR","ankL","ankR"];
@@ -452,13 +486,13 @@ function norm(p){const o={pos:p.pos||[0,0,0],root:p.root||[0,0,0]};
   JOINTS.forEach(j=>{const side=j.slice(-1),base=j.slice(0,-1);let v=p[j];
     if(v===undefined&&(side==="L"||side==="R")&&p[base]!==undefined){v=p[base];if(Array.isArray(v)&&side==="R")v=[v[0],-v[1],-v[2]]}
     if(v===undefined)v=0;o[j]=Array.isArray(v)?v:[v,0,0]});return o}
-function mirror(o){const m={pos:o.pos,root:o.root};JOINTS.forEach(j=>{const s=j.slice(-1);
+function mirror(o){const m={pos:[-o.pos[0],o.pos[1],o.pos[2]],root:[o.root[0],-o.root[1],-o.root[2]]};JOINTS.forEach(j=>{const s=j.slice(-1);
   const src=s==="L"?j.slice(0,-1)+"R":s==="R"?j.slice(0,-1)+"L":j,v=o[src];m[j]=s==="L"||s==="R"?[v[0],-v[1],-v[2]]:v});return m}
-Object.values(ANIM).forEach(a=>{a.A=norm(a.a);a.B=norm(a.b);a.C=a.alt?mirror(a.B):a.B});
+Object.values(ANIM).forEach(a=>{a.A=norm(a.a);a.B=norm(a.b);a.C=a.alt?mirror(a.B):a.B;a.MA=mirror(a.A);a.MB=mirror(a.B)});
 
 const viewer=(function(){
   const T=window.THREE,el=document.createElement("div");el.style.display="contents";
-  let ok=false,renderer,scene,cam,N={},meshes=[],props={},cur=null,t0=0,raf=0,playing=true,az=62,pausedAt=0,rig=null,mats=null;
+  let ok=false,renderer,scene,cam,N={},meshes=[],props={},cur=null,mir=false,musc={},t0=0,raf=0,playing=true,az=62,pausedAt=0,rig=null,mats=null;
   let DIM={hipX:.095,hipY:-.03,thigh:.42,shin:.42,ankH:.07,spY:.02,spine:.25,shX:.2,shY:.22,neckY:.27,headY:.17,L1:.28,L2:.26};
   const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
   const D=Math.PI/180;
@@ -486,12 +520,26 @@ const viewer=(function(){
       N["toe"+s]=G(N["ank"+s],0,-d.ankH,.17);
     });
     N.handL.add(props.bag);
+    musc={};const geo=new T.SphereGeometry(1,18,14);
+    const mm=(name,node,x,y,z,sx,sy,sz)=>{const m=new T.Mesh(geo,mats.mp);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.visible=false;N[node].add(m);(musc[name]=musc[name]||[]).push(m)};
+    const t=d.thigh,sn=d.shin,sp=d.spine,sy=d.shY;
+    ["L","R"].forEach((s,q)=>{const k=q?-1:1;
+      mm("quads","hip"+s,0,-t*.48,.045,.062,t*.36,.06);mm("hams","hip"+s,0,-t*.5,-.045,.06,t*.36,.058);
+      mm("glutes","root",.085*k,-.04,-.08,.085,.085,.07);mm("calves","kn"+s,0,-sn*.32,-.035,.045,sn*.26,.05);
+      mm("obl","spine",.105*k,sp*.5,.03,.035,sp*.5,.07);mm("chest","chest",.08*k,sy*.5,.095,.075,.06,.04);
+      mm("lats","chest",.12*k,sy*.1,-.06,.05,.14,.06);mm("delts","sh"+s,.012*k,-.02,0,.062,.066,.064);
+      mm("biceps","sh"+s,0,-d.L1*.52,.03,.036,d.L1*.3,.038);mm("triceps","sh"+s,0,-d.L1*.5,-.03,.036,d.L1*.32,.04);
+      mm("forearms","el"+s,0,-d.L2*.4,0,.04,d.L2*.34,.04)});
+    mm("abs","spine",0,sp*.45,.085,.08,sp*.62,.04);mm("lowback","spine",0,sp*.35,-.085,.085,sp*.55,.04);mm("upper","chest",0,sy*.6,-.085,.14,.09,.045);
+    if(cur)setMuscles(cur);
   }
+  function setMuscles(id){const mu=MUS[id]||[[],[]];Object.keys(musc).forEach(n=>{const lv=mu[0].includes(n)?1:mu[1].includes(n)?2:0;
+    musc[n].forEach(m=>{m.visible=!!lv;if(lv)m.material=lv===1?mats.mp:mats.ms})})}
   function setupRig(m){
     const B={},Q=T.Quaternion,V=T.Vector3;
     m.traverse(o=>{if(o.isBone)B[o.name.replace(/^mixamorig:?/,"")]=o;
       if(o.isMesh){o.castShadow=true;o.frustumCulled=false;const j=/joint/i.test(o.name+o.material.name);
-        o.material.color.set(j?0x2D55E0:0xBCC6DA);o.material.roughness=j?.55:.6;o.material.metalness=.05;if(o.material.map)o.material.map=null;o.material.needsUpdate=true}});
+        o.material.color.set(j?0x8D9AB8:0xC9D1E0);o.material.roughness=j?.55:.6;o.material.metalness=.05;if(o.material.map)o.material.map=null;o.material.needsUpdate=true}});
     scene.add(m);m.updateMatrixWorld(true);
     const P=n=>B[n].getWorldPosition(new V());
     m.scale.multiplyScalar(.84/(P("LeftUpLeg").distanceTo(P("LeftLeg"))+P("LeftLeg").distanceTo(P("LeftFoot"))));m.updateMatrixWorld(true);
@@ -529,7 +577,8 @@ const viewer=(function(){
     const floor=new T.Mesh(new T.CircleGeometry(2.2,48),new T.ShadowMaterial({opacity:.22}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
     const ring=new T.Mesh(new T.RingGeometry(1.55,1.57,64),new T.MeshBasicMaterial({color:0x8695b5,transparent:true,opacity:.5}));ring.rotation.x=-Math.PI/2;ring.position.y=.002;scene.add(ring);
     const M=c=>new T.MeshStandardMaterial({color:c,roughness:.65,metalness:.05});
-    mats={skin:M(0xC7D2E8),shirt:M(0x3D63E6),shorts:M(0x1E2B4F),shoe:M(0xF2A33A)};
+    mats={skin:M(0xC7D2E8),shirt:M(0x3D63E6),shorts:M(0x1E2B4F),shoe:M(0xF2A33A),
+      mp:new T.MeshStandardMaterial({color:0xE5343A,emissive:0x8a1015,roughness:.5}),ms:new T.MeshStandardMaterial({color:0xF5A83B,emissive:0x7a4a05,roughness:.5})};
     const P=(g,c,x,y,z)=>{const m=new T.Mesh(g,M(c));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;m.visible=false;return m};
     props.mat=P(new T.BoxGeometry(.75,.015,2.1),0x6FB3A0,0,.007,0);props.mat.castShadow=false;scene.add(props.mat);
     props.bench=P(new T.BoxGeometry(.7,.45,.38),0x8C7A66,0,.225,.6);scene.add(props.bench);
@@ -564,7 +613,7 @@ const viewer=(function(){
     else{let min=1e9;meshes.forEach(m=>{if(a.ik&&m.userData.arm)return;if(!m.geometry.boundingBox)m.geometry.computeBoundingBox();
       box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld);if(box.min.y<min)min=box.min.y});
       N.root.position.y-=min}
-    if(a.pin){N.root.updateMatrixWorld(true);N[a.pin[0]].getWorldPosition(v);N.root.position.z+=a.pin[1]-v.z}
+    if(a.pin){N.root.updateMatrixWorld(true);N[mir?a.pin[0].replace(/[LR]$/,c=>c==="L"?"R":"L"):a.pin[0]].getWorldPosition(v);N.root.position.z+=a.pin[1]-v.z}
     N.root.updateMatrixWorld(true);
     if(a.ik){const par=N.root.rotation.x+N.spine.rotation.x+N.chest.rotation.x,L1=DIM.L1,L2=DIM.L2,ty=a.ik[1]+(rig?.03:0);
       ["L","R"].forEach(s=>{N["sh"+s].getWorldPosition(v);const dy=ty-v.y,dz=a.ik[0]-v.z;
@@ -579,22 +628,22 @@ const viewer=(function(){
     if(a.bar){props.bar.position.y=a.bar;props.bar.children.forEach(c=>{if(c.userData.post){c.scale.y=a.bar;c.position.y=-a.bar/2}})}}
   function frame(now){
     const a=ANIM[cur];if(!a)return;const u=((now-t0)/1000/a.T)%2,half=u%1,p=.5-.5*Math.cos(half*2*Math.PI);
-    apply(a.A,u<1?a.B:a.C,p,a);
-    const d=a.cam[1],e=14*D,z=(az+(a.az||0))*D;
+    if(mir)apply(a.MA,a.MB,p,a);else apply(a.A,u<1?a.B:a.C,p,a);
+    const d=a.cam[1],e=14*D,z=(az+(a.az||0))*D*(mir?-1:1);
     cam.position.set(Math.sin(z)*Math.cos(e)*d,a.cam[0]+Math.sin(e)*d,Math.cos(z)*Math.cos(e)*d);cam.lookAt(0,a.cam[0],0);
     renderer.render(scene,cam);
   }
   function loop(){cancelAnimationFrame(raf);const step=now=>{frame(now);if(playing&&el.isConnected)raf=requestAnimationFrame(step)};raf=requestAnimationFrame(step)}
   return{el,
-    mount(slot,id){if(!renderer&&!ok)init();
+    mount(slot,id,m){if(!renderer&&!ok)init();
       if(!ok){slot.innerHTML='<p class="nogl">ההדמיה לא נטענה במכשיר הזה. ההנחיות למטה מספיקות כדי לבצע את התרגיל.</p>';return}
       slot.appendChild(el);size();
-      if(id!==cur){cur=id;t0=performance.now();const a=ANIM[id];setProps(a);
+      if(id!==cur||!!m!==mir){cur=id;mir=!!m;t0=performance.now();const a=ANIM[id];setProps(a);setMuscles(id);
         if(reduce&&playing){playing=false;pausedAt=t0+a.T*500}}
       viewer._label();if(playing)loop();else frame(pausedAt)},
     stop(){cancelAnimationFrame(raf)},
     hasRig(){return !!rig},
-    debug(id,phase,azv){if(!ok)init();cur=id;az=azv;const a=ANIM[id];setProps(a);t0=0;playing=false;frame(phase*a.T*1000)}
+    debug(id,phase,azv,m){if(!ok)init();cur=id;mir=!!m;az=azv;const a=ANIM[id];setProps(a);setMuscles(id);t0=0;playing=false;frame(phase*a.T*1000)}
   };
 })();
 
