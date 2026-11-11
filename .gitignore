@@ -1,0 +1,19 @@
+# Personal financial data must never be committed
+data/
+*.backup.json
+bakis-backup-*.json
+*.dump
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.db
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+node_modules/
+dist/
+.vinext/
